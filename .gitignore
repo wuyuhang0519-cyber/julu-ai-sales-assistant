@@ -1,0 +1,16 @@
+.env
+*.db
+__pycache__/
+.pytest_cache/
+node_modules/
+frontend/dist/
+.sites-runtime/
+playwright-report/
+test-results/
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+eval_julu.db
+coverage.xml
+htmlcov/
+.coverage

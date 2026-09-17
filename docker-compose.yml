@@ -1,0 +1,32 @@
+services:
+  app:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      DATABASE_URL: sqlite:///./data/julu.db
+      APP_ENV: ${APP_ENV:-development}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-30}
+      AI_MAX_RETRIES: ${AI_MAX_RETRIES:-2}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me}
+      SESSION_SECRET: ${SESSION_SECRET:-demo-secret-change-me}
+      CSRF_ENABLED: ${CSRF_ENABLED:-true}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      STORE_RAW_AI_RESPONSE: ${STORE_RAW_AI_RESPONSE:-false}
+      CALENDAR_PROVIDER: ${CALENDAR_PROVIDER:-local}
+      GOOGLE_CALENDAR_ID: ${GOOGLE_CALENDAR_ID:-}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${GOOGLE_SERVICE_ACCOUNT_JSON:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+      EMAIL_TEST_ALLOWLIST: ${EMAIL_TEST_ALLOWLIST:-}
+      FOLLOWUP_SCHEDULER_ENABLED: ${FOLLOWUP_SCHEDULER_ENABLED:-true}
+      FOLLOWUP_DEMO_DELAY_SECONDS: ${FOLLOWUP_DEMO_DELAY_SECONDS:-60}
+    volumes: ["julu_data:/app/data"]
+    restart: unless-stopped
+volumes:
+  julu_data:
