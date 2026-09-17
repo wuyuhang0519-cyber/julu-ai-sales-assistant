@@ -1,0 +1,2 @@
+import {render,screen} from '@testing-library/react'; import {MemoryRouter} from 'react-router-dom'; import {describe,it,expect} from 'vitest'; import App from './App';
+describe('JULU AI UI',()=>{it('renders lead form',()=>{render(<MemoryRouter><App/></MemoryRouter>);expect(screen.getByText('获取 AI 增长诊断')).toBeInTheDocument();expect(screen.getByRole('button',{name:/开始 AI 诊断/})).toBeInTheDocument()})})

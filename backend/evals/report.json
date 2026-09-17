@@ -1,0 +1,140 @@
+{
+  "total": 9,
+  "passed": 9,
+  "results": [
+    {
+      "id": "high_manufacturer",
+      "passed": true,
+      "actual": {
+        "intent": "High",
+        "status": "Contacted",
+        "action": "continue_qualification"
+      },
+      "expected": {
+        "intent": "High",
+        "actions": [
+          "offer_meeting",
+          "continue_qualification"
+        ]
+      }
+    },
+    {
+      "id": "low_research",
+      "passed": true,
+      "actual": {
+        "intent": "Low",
+        "status": "Contacted",
+        "action": "continue_qualification"
+      },
+      "expected": {
+        "intent": "Low",
+        "actions": [
+          "share_material",
+          "continue_qualification"
+        ]
+      }
+    },
+    {
+      "id": "explicit_rejection",
+      "passed": true,
+      "actual": {
+        "intent": "Low",
+        "status": "Closed",
+        "action": "close"
+      },
+      "expected": {
+        "status": "Closed",
+        "actions": [
+          "close"
+        ]
+      }
+    },
+    {
+      "id": "price_contract",
+      "passed": true,
+      "actual": {
+        "intent": "Medium",
+        "status": "Contacted",
+        "action": "handoff_to_human"
+      },
+      "expected": {
+        "actions": [
+          "handoff_to_human"
+        ]
+      }
+    },
+    {
+      "id": "knowledge_boundary",
+      "passed": true,
+      "actual": {
+        "intent": "Medium",
+        "status": "Contacted",
+        "action": "handoff_to_human"
+      },
+      "expected": {
+        "actions": [
+          "handoff_to_human",
+          "continue_qualification"
+        ]
+      }
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "actual": {
+        "intent": "Medium",
+        "status": "Contacted",
+        "action": "handoff_to_human"
+      },
+      "expected": {
+        "actions": [
+          "handoff_to_human"
+        ]
+      }
+    },
+    {
+      "id": "conflicting_info",
+      "passed": true,
+      "actual": {
+        "intent": "Medium",
+        "status": "Contacted",
+        "action": "continue_qualification"
+      },
+      "expected": {
+        "actions": [
+          "continue_qualification",
+          "offer_meeting"
+        ]
+      }
+    },
+    {
+      "id": "missing_fields",
+      "passed": true,
+      "actual": {
+        "intent": "Low",
+        "status": "Contacted",
+        "action": "continue_qualification"
+      },
+      "expected": {
+        "intent": "Low",
+        "actions": [
+          "continue_qualification"
+        ]
+      }
+    },
+    {
+      "id": "intent_boundary",
+      "passed": true,
+      "actual": {
+        "intent": "Medium",
+        "status": "Contacted",
+        "action": "continue_qualification"
+      },
+      "expected": {
+        "actions": [
+          "continue_qualification"
+        ]
+      }
+    }
+  ]
+}
