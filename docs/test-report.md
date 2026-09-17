@@ -31,9 +31,9 @@
 
 ## 尚需带凭证执行的验收
 
-当前环境未提供 OpenAI、Google Calendar、Resend、GitHub 或 Railway 凭证，因此以下项目不能在本机诚实宣称完成：
+当前环境已在 2026-09-18 使用虚构客户数据完成一次真实 DeepSeek `deepseek-chat` 调用，结构化结果一次通过服务端 Schema 校验；密钥未写入仓库或报告。当前仍未提供 Google Calendar、Resend 或 Railway 凭证，因此以下项目不能在本机诚实宣称完成：
 
-- 真实 OpenAI 成功调用、真实结构修复和一次可控失败记录。
+- 真实模型结构修复分支与一次可控 Provider 失败记录（真实 DeepSeek 成功调用已完成）。
 - 专用 Google Calendar 的 FreeBusy、创建与取消事件。
 - Resend 向本人白名单邮箱真实投递及 Provider Message ID。
 - GitHub 私有仓库、Actions 绿灯、公开前全历史 Gitleaks。

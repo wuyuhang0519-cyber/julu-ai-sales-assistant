@@ -17,7 +17,7 @@ flowchart TB
   end
   Public --> Workflow
   Admin --> Auth --> Workflow
-  Workflow --> Validate --> OpenAI[OpenAI Responses API]
+  Workflow --> Validate --> AI[DeepSeek Chat / OpenAI Responses]
   Workflow --> Calendar[Google Calendar]
   Scheduler --> Resend[Resend API]
   Workflow --> SQLite[(SQLite Volume)]
@@ -48,7 +48,7 @@ erDiagram
 ```mermaid
 flowchart LR
   Input[客户输入 + Profile + 最近消息] --> Prompt[版本化 Prompt + 知识库]
-  Prompt --> Model[Responses API 严格 JSON Schema]
+  Prompt --> Model[DeepSeek JSON 模式 / OpenAI 严格 JSON Schema]
   Model --> Check{Pydantic 校验}
   Check -->|通过| Guard[证据 / 分数 / Intent / 人工优先]
   Check -->|失败| Repair[一次结构化修复]

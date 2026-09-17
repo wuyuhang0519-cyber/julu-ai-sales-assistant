@@ -109,7 +109,7 @@ function Landing() {
           <div className="shell grid2 items-center">
             <div>
               <span className="pill bg-blue-500/20 text-blue-200 mb-5">
-                <Sparkles size={14} /> {demoMode === false ? "真实 OpenAI 模式" : "离线 Demo 模式"} · 可审计 AI 决策
+                <Sparkles size={14} /> {demoMode === false ? "真实模型模式" : "离线 Demo 模式"} · 可审计 AI 决策
               </span>
               <h1 className="text-4xl md:text-5xl font-black leading-tight mb-5">
                 让每一条官网客资，
@@ -335,7 +335,7 @@ function Chat() {
               评分 {lead.lead_score}
             </span>
             <span className={`pill ${demoMode ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}`}>
-              {demoMode ? "离线 Demo 模式" : "真实 OpenAI 模式"}
+              {demoMode ? "离线 Demo 模式" : "真实模型模式"}
             </span>
           </div>
         </div>

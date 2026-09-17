@@ -19,7 +19,7 @@
 
 ## 校验与失败策略
 
-1. Responses API 使用严格 JSON Schema。
+1. OpenAI Responses API 使用严格 JSON Schema；DeepSeek 使用 Chat Completions JSON 模式并由同一 Pydantic Schema 做服务端强校验。
 2. Pydantic 校验枚举、字段、分数范围、分项上限和总分。
 3. 首次失败将原输出截断后交给模型进行一次仅 JSON 的结构修复。
 4. 再失败则写入 `AIInvocation(Failed)`，返回安全提示，不修改 Profile、评分或 Lead 状态。
@@ -27,4 +27,4 @@
 
 ## Demo Provider 边界
 
-Demo Provider 是确定性 Contract Provider，只用于 CI、离线演示和断网备用。它使用结构化场景和证据约束，不代表真实模型推理。面试主演示必须在后台集成页确认 OpenAI 已配置且模式为 `real`。
+Demo Provider 是确定性 Contract Provider，只用于 CI、离线演示和断网备用。它使用结构化场景和证据约束，不代表真实模型推理。面试主演示必须在后台集成页确认所选真实 Provider 已配置且模式为 `real`。

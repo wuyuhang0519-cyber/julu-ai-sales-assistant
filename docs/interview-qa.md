@@ -2,7 +2,7 @@
 
 ## AI 为什么是真实且可验证的？
 
-主演示关闭 Demo Provider，由 OpenAI Responses API 生成严格结构化结果。每轮保存模型、Prompt 版本、消息 ID、Token、耗时、请求 ID、验证状态、修复次数、知识引用和评分证据；原始对话与事实来源可逐项对照。
+主演示关闭 Demo Provider，由 DeepSeek API 生成 JSON，再由服务端强类型 Schema 校验；失败时进行一次结构修复，仍失败则安全降级。每轮保存模型、Prompt 版本、消息 ID、Token、耗时、请求 ID、验证状态、修复次数、知识引用和评分证据；原始对话与事实来源可逐项对照。OpenAI Responses Provider 仍可通过环境变量切换。
 
 ## 为什么不是固定问卷？
 

@@ -1,6 +1,6 @@
 import os
 from datetime import datetime,timedelta,timezone
-os.environ.update({"DATABASE_URL":"sqlite:///./test_julu.db","DEMO_MODE":"true","ADMIN_USERNAME":"admin","ADMIN_PASSWORD":"change-me"})
+os.environ.update({"DATABASE_URL":"sqlite:///./test_julu.db","DEMO_MODE":"true","AI_PROVIDER":"openai","OPENAI_API_KEY":"","DEEPSEEK_API_KEY":"","ADMIN_USERNAME":"admin","ADMIN_PASSWORD":"change-me"})
 from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.ai_service import intent,demo_result
@@ -54,7 +54,7 @@ def test_redaction_and_csrf():
 def test_followup_created_and_integration_status():
     create('followup-lead'); csrf=login(); tasks=client.get('/api/admin/follow-ups').json(); assert tasks and tasks[0]['status']=='PendingApproval'
     r=client.post(f"/api/admin/follow-ups/{tasks[0]['id']}/approve",json={},headers={'X-CSRF-Token':csrf}); assert r.status_code==200 and r.json()['status']=='Scheduled'
-    status=client.get('/api/admin/integrations/status').json(); assert set(status)=={'openai','google_calendar','resend'}
+    status=client.get('/api/admin/integrations/status').json(); assert set(status)=={'ai','google_calendar','resend'}
 
 def test_schema_rejects_invalid_dimension_and_total():
     bad={"reply":"x","lead_score":101,"intent":"High","score_breakdown":{},"score_reason":"x","next_action":"offer_meeting","suggested_status":"Qualified","conversation_summary":"x"}
@@ -117,6 +117,34 @@ def test_real_ai_without_key_fails_without_mutating_business_state():
             settings.demo_mode=False;settings.openai_api_key=''
             execution=run_ai(lead,lead.profile,lead.messages,False);assert execution.result is None and execution.error_type=='missing_api_key'
         finally:settings.demo_mode,settings.openai_api_key=old
+
+def test_deepseek_without_key_is_classified():
+    d=create('deepseek-no-key')
+    with SessionLocal() as db:
+        lead=db.get(Lead,d['lead']['id']);old=(settings.demo_mode,settings.ai_provider,settings.deepseek_api_key)
+        try:
+            settings.demo_mode=False;settings.ai_provider='deepseek';settings.deepseek_api_key=''
+            execution=run_ai(lead,lead.profile,lead.messages,False)
+            assert execution.provider=='deepseek' and execution.model==settings.deepseek_model and execution.error_type=='missing_api_key'
+        finally:settings.demo_mode,settings.ai_provider,settings.deepseek_api_key=old
+
+def test_deepseek_json_provider_path(monkeypatch):
+    from types import SimpleNamespace
+    d=create('deepseek-fake')
+    with SessionLocal() as db:
+        lead=db.get(Lead,d['lead']['id']);valid=demo_result(lead,lead.profile,None,False).model_dump_json();calls=[]
+        class FakeCompletions:
+            def create(self,**kwargs):
+                calls.append(kwargs);return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=valid))],usage=SimpleNamespace(prompt_tokens=10,completion_tokens=20))
+        class FakeOpenAI:
+            def __init__(self,**kwargs):self.chat=SimpleNamespace(completions=FakeCompletions())
+        old=(settings.demo_mode,settings.ai_provider,settings.deepseek_api_key)
+        try:
+            settings.demo_mode=False;settings.ai_provider='deepseek';settings.deepseek_api_key='test-only'
+            monkeypatch.setattr('backend.app.ai_service.OpenAI',FakeOpenAI)
+            execution=run_ai(lead,lead.profile,lead.messages,False)
+            assert execution.result and execution.provider=='deepseek' and execution.input_tokens==10 and calls[0]['response_format']=={'type':'json_object'}
+        finally:settings.demo_mode,settings.ai_provider,settings.deepseek_api_key=old
 
 def test_admin_operational_endpoints_and_manual_priority():
     d=create('admin-ops');csrf=login();lid=d['lead']['id']

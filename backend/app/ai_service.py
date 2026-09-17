@@ -40,26 +40,44 @@ def demo_result(lead,profile,message:str|None,first=False)->AIResult:
 
 def _prompt(lead,profile,messages,first):
     kb=Path(__file__).parent.joinpath("knowledge/company.md").read_text(encoding="utf-8")
-    return f"""你是聚路 AI 销售资格判断助手。Prompt版本:{PROMPT_VERSION}。只依据知识库与客户证据，严禁虚构价格、案例、排名或合同承诺。每轮最多两个问题，不重复已知信息。首次接待必须个性化。输出事实来源消息ID、问题原因和知识引用。只输出符合JSON Schema的对象。\n知识库:\n{kb}\n首次接待:{first}\n客户:{lead.name}/{lead.company}/{lead.industry}/{lead.country}/{lead.interested_service}/{lead.initial_requirement}/{lead.website}\nProfile:{json.dumps({f:getattr(profile,f,None) for f in FIELDS},ensure_ascii=False)}\n历史:{json.dumps([{"id":m.id,"role":m.role,"content":m.content} for m in messages[-12:]],ensure_ascii=False)}"""
+    return f"""你是聚路 AI 销售资格判断助手。Prompt版本:{PROMPT_VERSION}。只依据知识库与客户证据，严禁虚构价格、案例、排名或合同承诺。每轮最多两个问题，不重复已知信息。首次接待必须个性化。输出事实来源消息ID、问题原因和知识引用。只输出符合JSON Schema的对象。
+评分必须且只能包含五项：业务匹配度 max_score=25、痛点明确度 max_score=25、时间紧迫度 max_score=20、预算可行性 max_score=15、决策影响力 max_score=15。lead_score 必须等于五项 score 之和。证据不足不得高分。fact_sources 的每个值必须是原始消息整数 ID 数组，没有来源时使用空数组。
+知识库:\n{kb}\n首次接待:{first}\n客户:{lead.name}/{lead.company}/{lead.industry}/{lead.country}/{lead.interested_service}/{lead.initial_requirement}/{lead.website}\nProfile:{json.dumps({f:getattr(profile,f,None) for f in FIELDS},ensure_ascii=False)}\n历史:{json.dumps([{"id":m.id,"role":m.role,"content":m.content} for m in messages[-12:]],ensure_ascii=False)}"""
 
 def _extract_response(rsp):
     text=getattr(rsp,"output_text",None) or rsp.output[0].content[0].text;usage=getattr(rsp,"usage",None);return text,getattr(usage,"input_tokens",None),getattr(usage,"output_tokens",None)
+
+def _extract_chat_response(rsp):
+    text=rsp.choices[0].message.content or "";usage=getattr(rsp,"usage",None);return text,getattr(usage,"prompt_tokens",None),getattr(usage,"completion_tokens",None)
+
+def _provider_settings():
+    provider=settings.ai_provider.lower().strip()
+    if provider=="deepseek":return provider,settings.deepseek_api_key,settings.deepseek_base_url,settings.deepseek_model
+    if provider=="openai":return provider,settings.openai_api_key,settings.openai_base_url or None,settings.openai_model
+    return provider,"",None,""
 
 def run_ai(lead,profile,messages,first=False)->AIExecution:
     rid=str(uuid.uuid4());start=time.perf_counter()
     if settings.demo_mode:
         result=demo_result(lead,profile,messages[-1].content if messages and messages[-1].role=="user" else None,first)
         return AIExecution(result,rid,"demo","demo-deterministic",int((time.perf_counter()-start)*1000),"Valid",response_summary=redact({"score":result.lead_score,"intent":result.intent,"action":result.next_action}))
-    if not settings.openai_api_key:return AIExecution(None,rid,"openai",settings.openai_model,0,"Failed",error_type="missing_api_key")
-    client=OpenAI(api_key=settings.openai_api_key,base_url=settings.openai_base_url or None,timeout=settings.ai_timeout_seconds,max_retries=settings.ai_max_retries);schema=AIResult.model_json_schema();prompt=_prompt(lead,profile,messages,first);raw="";repair=0
+    provider,api_key,base_url,model=_provider_settings()
+    if provider not in {"openai","deepseek"}:return AIExecution(None,rid,provider,model,0,"Failed",error_type="unsupported_provider")
+    if not api_key:return AIExecution(None,rid,provider,model,0,"Failed",error_type="missing_api_key")
+    client=OpenAI(api_key=api_key,base_url=base_url,timeout=settings.ai_timeout_seconds,max_retries=settings.ai_max_retries);schema=AIResult.model_json_schema();prompt=_prompt(lead,profile,messages,first);raw="";repair=0
     try:
         for attempt in range(2):
             repair=attempt;instruction=prompt if attempt==0 else f"修复下面输出使其严格符合JSON Schema。只输出JSON。\nSchema:{json.dumps(schema,ensure_ascii=False)}\n原输出:{raw[:8000]}"
-            rsp=client.responses.create(model=settings.openai_model,input=[{"role":"system","content":instruction}],text={"format":{"type":"json_schema","name":"sales_decision","schema":schema,"strict":True}});raw,it,ot=_extract_response(rsp)
+            if provider=="deepseek":
+                instruction=f"{instruction}\nJSON Schema:{json.dumps(schema,ensure_ascii=False)}"
+                chat_rsp=client.chat.completions.create(model=model,messages=[{"role":"system","content":instruction},{"role":"user","content":"请完成销售判断，只输出一个有效的 JSON 对象。"}],response_format={"type":"json_object"},temperature=0)
+                raw,it,ot=_extract_chat_response(chat_rsp)
+            else:
+                response_rsp=client.responses.create(model=model,input=[{"role":"system","content":instruction}],text={"format":{"type":"json_schema","name":"sales_decision","schema":schema,"strict":True}});raw,it,ot=_extract_response(response_rsp)
             try:
                 result=AIResult.model_validate_json(raw);lat=int((time.perf_counter()-start)*1000)
-                return AIExecution(result,rid,"openai",settings.openai_model,lat,"Repaired" if attempt else "Valid",attempt,it,ot,response_summary=redact({"score":result.lead_score,"intent":result.intent,"action":result.next_action,"reply":result.reply[:160]}))
+                return AIExecution(result,rid,provider,model,lat,"Repaired" if attempt else "Valid",attempt,it,ot,response_summary=redact({"score":result.lead_score,"intent":result.intent,"action":result.next_action,"reply":result.reply[:160]}))
             except (ValidationError,json.JSONDecodeError):
                 if attempt==1:raise
-    except Exception as e:return AIExecution(None,rid,"openai",settings.openai_model,int((time.perf_counter()-start)*1000),"Failed",repair_attempts=repair,error_type=type(e).__name__,response_summary=redact({"error":str(e)}))
-    return AIExecution(None,rid,"openai",settings.openai_model,int((time.perf_counter()-start)*1000),"Failed",error_type="unknown")
+    except Exception as e:return AIExecution(None,rid,provider,model,int((time.perf_counter()-start)*1000),"Failed",repair_attempts=repair,error_type=type(e).__name__,response_summary=redact({"error":str(e)}))
+    return AIExecution(None,rid,provider,model,int((time.perf_counter()-start)*1000),"Failed",error_type="unknown")

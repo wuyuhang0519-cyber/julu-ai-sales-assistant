@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = ""
     openai_model: str = "gpt-4o-mini"
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
     ai_timeout_seconds: int = 30
     ai_max_retries: int = 2
     admin_username: str = ""
@@ -32,9 +35,15 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"
 
+    @property
+    def selected_ai_key(self) -> str:
+        return self.deepseek_api_key if self.ai_provider.lower() == "deepseek" else self.openai_api_key
+
     def validate_runtime(self) -> None:
         if self.is_production and (not self.admin_password or not self.session_secret or len(self.session_secret) < 32):
             raise RuntimeError("Production requires ADMIN_PASSWORD and SESSION_SECRET (32+ chars)")
+        if self.is_production and not self.demo_mode and not self.selected_ai_key:
+            raise RuntimeError(f"Production requires an API key for AI_PROVIDER={self.ai_provider}")
         if not self.admin_username:
             self.admin_username = "admin"
         if not self.admin_password and not self.is_production:

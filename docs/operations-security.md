@@ -13,8 +13,8 @@
 
 | 场景 | 策略 | 业务状态 |
 |---|---|---|
-| OpenAI 超时 / 网络 / 5xx | SDK 有限重试，最终安全降级 | 不更新 Profile、分数、Intent、状态 |
-| OpenAI 401 | 记录配置错误，不盲重试 | 客户消息保留，转人工 |
+| 模型 API 超时 / 网络 / 5xx | SDK 有限重试，最终安全降级 | 不更新 Profile、分数、Intent、状态 |
+| 模型 API 401 | 记录配置错误，不盲重试 | 客户消息保留，转人工 |
 | 非法 JSON / 缺字段 / 越界 | 一次结构修复，再失败降级 | 不推进状态 |
 | Intent 与总分不一致 | 服务端按区间纠正并审计 | 采用纠正结果 |
 | Google 401/403 | 分类为 auth，不更新 Meeting | Slot 回滚释放 |
@@ -33,7 +33,7 @@
 1. `APP_ENV=production`、`DEMO_MODE=false`、`COOKIE_SECURE=true`。
 2. 强随机管理员密码和至少 32 位 Session Secret。
 3. Railway 单实例，Volume 挂载 `/app/data`，数据库使用绝对路径。
-4. OpenAI、Google 服务账号、Resend 使用最小权限测试资源；禁止真实批量触达。
+4. DeepSeek/OpenAI、Google 服务账号、Resend 使用最小权限测试资源；禁止真实批量触达。
 5. 完成一次成功和一次可控失败，并在后台验证 IntegrationEvent、AIInvocation 与 ActivityLog。
 6. 扫描代码、镜像、日志和全部 Git 历史，确认无密钥、服务账号 JSON 或客户数据。
 7. 备份 SQLite Volume；部署前后记录 Alembic revision。

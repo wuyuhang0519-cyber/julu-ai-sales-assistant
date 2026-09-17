@@ -69,7 +69,7 @@ def transition(db,lead,to_status,actor,reason):
 def apply_ai(db,lead,execution):
     inv=AIInvocation(lead_id=lead.id,request_id=execution.request_id,provider=execution.provider,model_name=execution.model,prompt_version=PROMPT_VERSION,input_message_ids=[m.id for m in lead.messages if m.id],knowledge_refs=execution.result.knowledge_refs if execution.result else [],validation_status=execution.validation_status,repair_attempts=execution.repair_attempts,latency_ms=execution.latency_ms,input_tokens=execution.input_tokens,output_tokens=execution.output_tokens,error_type=execution.error_type,response_summary=execution.response_summary or {})
     db.add(inv);db.flush()
-    if execution.provider!="demo":db.add(IntegrationEvent(provider="openai",operation="sales_reasoning",status="Success" if execution.result else "Failed",lead_id=lead.id,latency_ms=execution.latency_ms,error_type=execution.error_type,detail={"validation_status":execution.validation_status,"prompt_version":PROMPT_VERSION}))
+    if execution.provider!="demo":db.add(IntegrationEvent(provider=execution.provider,operation="sales_reasoning",status="Success" if execution.result else "Failed",lead_id=lead.id,latency_ms=execution.latency_ms,error_type=execution.error_type,detail={"validation_status":execution.validation_status,"prompt_version":PROMPT_VERSION}))
     if not execution.result:return inv
     result=execution.result;p=lead.profile
     for k,v in result.updated_profile.items():
@@ -240,7 +240,7 @@ def deliveries(db:Session=Depends(get_db)):return rows(db.scalars(select(EmailDe
 def integration_status(db:Session=Depends(get_db)):
     def last(provider):
         x=db.scalar(select(IntegrationEvent).where(IntegrationEvent.provider==provider,IntegrationEvent.status=="Success").order_by(IntegrationEvent.created_at.desc()).limit(1));return x.created_at if x else None
-    return {"openai":{"configured":bool(settings.openai_api_key),"mode":"demo" if settings.demo_mode else "real","last_success":last("openai")},"google_calendar":{"configured":calendar_service.configured,"provider":settings.calendar_provider,"last_success":last("google_calendar")},"resend":{"configured":email_service.configured,"allowlist_count":len(email_service.allowlist),"last_success":last("resend")}}
+    ai_provider=settings.ai_provider.lower();return {"ai":{"configured":bool(settings.selected_ai_key),"provider":ai_provider,"mode":"demo" if settings.demo_mode else "real","last_success":last(ai_provider)},"google_calendar":{"configured":calendar_service.configured,"provider":settings.calendar_provider,"last_success":last("google_calendar")},"resend":{"configured":email_service.configured,"allowlist_count":len(email_service.allowlist),"last_success":last("resend")}}
 
 frontend="frontend/dist"
 if os.path.isdir(frontend):
