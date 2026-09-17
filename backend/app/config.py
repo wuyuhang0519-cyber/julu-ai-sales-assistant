@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     calendar_provider: str = "local"
     google_calendar_id: str = ""
     google_service_account_json: str = ""
+    google_service_account_file: str = ""
+    google_calendar_invite_attendees: bool = False
     resend_api_key: str = ""
     resend_from_email: str = ""
     email_test_allowlist: str = ""

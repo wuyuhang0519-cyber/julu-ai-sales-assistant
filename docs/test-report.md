@@ -31,12 +31,12 @@
 
 ## 尚需带凭证执行的验收
 
-当前环境已在 2026-09-18 使用虚构客户数据完成一次真实 DeepSeek `deepseek-chat` 调用，结构化结果一次通过服务端 Schema 校验；密钥未写入仓库或报告。当前仍未提供 Google Calendar、Resend 或 Railway 凭证，因此以下项目不能在本机诚实宣称完成：
+当前环境已在 2026-09-18 使用虚构客户数据完成一次真实 DeepSeek `deepseek-chat` 调用，结构化结果一次通过服务端 Schema 校验；密钥未写入仓库或报告。当前仍未提供 Resend 或 Railway 凭证，因此以下项目不能在本机诚实宣称完成：
+
+同日已完成 Google Calendar 专用测试日历的真实验证：FreeBusy 查询成功、事件创建成功、事件取消成功。首次创建通过 `attendees` 邀请时得到预期的服务账号 403，系统随后改为个人账号安全模式（真实创建事件但不邀请参与者）；Google Workspace 可通过显式开关启用邀请。
 
 - 真实模型结构修复分支与一次可控 Provider 失败记录（真实 DeepSeek 成功调用已完成）。
-- 专用 Google Calendar 的 FreeBusy、创建与取消事件。
 - Resend 向本人白名单邮箱真实投递及 Provider Message ID。
-- GitHub 私有仓库、Actions 绿灯、公开前全历史 Gitleaks。
 - Railway 公网 URL 与部署后冒烟。
 
 配置凭证后按照 `README.md` 的“真实主演示配置”和“Railway 部署”逐项执行，后台 Integration Events 可作为验证证据。

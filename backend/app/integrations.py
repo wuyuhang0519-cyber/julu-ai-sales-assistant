@@ -1,5 +1,6 @@
 import json,time
 from datetime import datetime
+from pathlib import Path
 import httpx
 from .config import settings
 from .security import redact_email
@@ -9,12 +10,16 @@ class IntegrationError(RuntimeError):
 
 class CalendarService:
     @property
-    def configured(self): return settings.calendar_provider=="google" and bool(settings.google_calendar_id and settings.google_service_account_json)
+    def configured(self):
+        has_credentials=bool(settings.google_service_account_json) or bool(settings.google_service_account_file and Path(settings.google_service_account_file).is_file())
+        return settings.calendar_provider=="google" and bool(settings.google_calendar_id and has_credentials)
     def _service(self):
         from google.oauth2.service_account import Credentials
         from googleapiclient.discovery import build
-        info=json.loads(settings.google_service_account_json)
-        creds=Credentials.from_service_account_info(info,scopes=["https://www.googleapis.com/auth/calendar"])
+        scopes=["https://www.googleapis.com/auth/calendar"]
+        if settings.google_service_account_json:
+            info=json.loads(settings.google_service_account_json);creds=Credentials.from_service_account_info(info,scopes=scopes)
+        else:creds=Credentials.from_service_account_file(settings.google_service_account_file,scopes=scopes)
         return build("calendar","v3",credentials=creds,cache_discovery=False)
     def freebusy(self,start:datetime,end:datetime):
         if not self.configured:return []
@@ -33,7 +38,9 @@ class CalendarService:
     def create(self,start:datetime,end:datetime,name:str,email:str,notes:str|None):
         if not self.configured:return {"provider":"local","event_id":None,"url":None}
         try:
-            svc=self._service(); body={"summary":f"JULU AI 需求诊断 - {name}","description":notes or "JULU AI 官网客资预约","start":{"dateTime":start.isoformat(),"timeZone":"UTC"},"end":{"dateTime":end.isoformat(),"timeZone":"UTC"},"attendees":[{"email":email}]}
+            description=f"{notes or 'JULU AI 官网客资预约'}\n测试联系人：{email}"
+            svc=self._service(); body={"summary":f"JULU AI 需求诊断 - {name}","description":description,"start":{"dateTime":start.isoformat(),"timeZone":"UTC"},"end":{"dateTime":end.isoformat(),"timeZone":"UTC"}}
+            if settings.google_calendar_invite_attendees:body["attendees"]=[{"email":email}]
             event=svc.events().insert(calendarId=settings.google_calendar_id,body=body,sendUpdates="none").execute()
             return {"provider":"google","event_id":event.get("id"),"url":event.get("htmlLink")}
         except Exception as e: raise self._error("calendar_create_error",e) from e

@@ -35,6 +35,10 @@ EMAIL_TEST_ALLOWLIST=本人测试邮箱,公司提供的测试邮箱
 
 Google 服务账号必须被共享为专用测试日历的可编辑成员。Resend 对非白名单收件人只记录 `Blocked`，不会外发。不要使用真实客户数据。
 
+本地 Docker 推荐不要把私钥 JSON 展开到 `.env`：将下载文件保存为 `secrets/google-service-account.json`（该目录已被 Git 忽略），并设置 `GOOGLE_SERVICE_ACCOUNT_FILE=/app/secrets/google-service-account.json`。Railway 无本地文件挂载时使用 `GOOGLE_SERVICE_ACCOUNT_JSON` Secret。
+
+个人 Google 账号的服务账号不能邀请参与者，默认 `GOOGLE_CALENDAR_INVITE_ATTENDEES=false`：系统仍会真实创建预约事件并记录测试联系人，但不发送日历邀请。只有已配置 Domain-Wide Delegation 的 Google Workspace 才应开启该选项。
+
 ## 已实现能力
 
 - 首次接待结合姓名、公司、行业、地区、服务、需求和官网；多轮对话基于已知事实动态提问。
