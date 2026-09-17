@@ -1,0 +1,117 @@
+# JULU AI 销售自动化系统
+
+面向北京聚路国际 AI 工程师实操 B 题的作品级 Demo：从官网留资开始，由真实 OpenAI 模型完成个性化接待、事实提取、五维评分与下一动作判断；应用负责状态机、人工优先、幂等、调度与持久化；Google Calendar 和 Resend 负责可验证的外部动作。
+
+> 默认 `DEMO_MODE=true` 仅用于离线启动和 CI。正式演示应配置真实 OpenAI、专用测试日历和本人测试邮箱，并将 `DEMO_MODE=false`。
+
+## 五分钟启动
+
+1. 复制 `.env.example` 为 `.env`，至少修改 `ADMIN_PASSWORD` 与 `SESSION_SECRET`。
+2. 运行 `docker compose up --build`。
+3. 打开官网 <http://localhost:8000>、后台 <http://localhost:8000/admin>、OpenAPI <http://localhost:8000/docs>。
+
+测试账号由 `.env` 中的 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 决定。登录页不会预填或打包账号密码。`APP_ENV=production` 时，默认密码、短 Session Secret 或缺失真实 AI 配置都会令应用拒绝启动。
+
+## 真实主演示配置
+
+```env
+APP_ENV=production
+DEMO_MODE=false
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4o-mini
+ADMIN_USERNAME=...
+ADMIN_PASSWORD=...
+SESSION_SECRET=至少32位随机字符串
+COOKIE_SECURE=true
+CALENDAR_PROVIDER=google
+GOOGLE_CALENDAR_ID=专用测试日历ID
+GOOGLE_SERVICE_ACCOUNT_JSON={...服务账号 JSON...}
+RESEND_API_KEY=...
+RESEND_FROM_EMAIL=已验证发件地址
+EMAIL_TEST_ALLOWLIST=本人测试邮箱,公司提供的测试邮箱
+```
+
+Google 服务账号必须被共享为专用测试日历的可编辑成员。Resend 对非白名单收件人只记录 `Blocked`，不会外发。不要使用真实客户数据。
+
+## 已实现能力
+
+- 首次接待结合姓名、公司、行业、地区、服务、需求和官网；多轮对话基于已知事实动态提问。
+- OpenAI Responses API + JSON Schema；保存模型、Prompt 版本、消息 ID、Token、耗时、请求 ID、知识引用、验证与修复次数。
+- 五维评分强类型校验；分项上限和总分必须一致，Intent 由服务端纠正；二次结构失败时安全降级且不改业务状态。
+- `AvailabilitySlot` 原子占用和数据库唯一约束；同 Lead 重复请求返回原预约，不同 Lead 竞争同一 Slot 只有一个成功。
+- Google FreeBusy、事件创建与取消；只有本地 Slot 和外部日历均成功才进入 Meeting。
+- Follow-up 生成、审批、定时执行、租约回收、最多三次重试、取消和审计；Resend 保存脱敏收件人及 Provider ID。
+- 后台包含 Lead 搜索筛选、详情证据链、人工接管、手动状态、预约、Follow-up、AI 监控、日志和集成状态。
+- HttpOnly Session、CSRF、防登录爆破、安全响应头、同源部署、请求长度限制和统一敏感数据脱敏。
+- Alembic 是正式环境唯一建库与升级入口；容器启动迁移失败即停止。
+
+## 架构
+
+```mermaid
+flowchart LR
+  V[访客 React] --> API[FastAPI]
+  O[运营后台 React] --> API
+  API --> WF[销售工作流 / 状态机]
+  WF --> AI[OpenAI Responses API]
+  AI --> KB[版本化知识库]
+  WF --> DB[(SQLite + Railway Volume)]
+  WF --> CAL[Google Calendar]
+  SCH[数据库轮询调度器] --> DB
+  SCH --> MAIL[Resend]
+  API --> AUDIT[AIInvocation / ActivityLog / 状态历史]
+  AUDIT --> DB
+```
+
+完整组件图、ERD、AI 工作流、调度图和外部调用时序见 [架构文档](docs/architecture.md)。
+
+| 领域 | 持久化与约束 |
+|---|---|
+| Lead / Profile / Message | 客户状态、结构化事实、消息唯一 ID |
+| AIInvocation / AIDecision | Prompt、模型、证据、评分、修复、错误 |
+| AvailabilitySlot / Appointment | UTC 时段、资源唯一约束、外部事件与同步状态 |
+| FollowUpTask / EmailDelivery | 审批状态、租约、尝试次数、脱敏收件人 |
+| LeadStatusHistory / ActivityLog | 自动与人工变化的统一审计轨迹 |
+
+人工接管、手动状态与 Closed 始终优先于 AI。价格、合同、案例、效果保证和知识库外问题不得由模型承诺。
+
+## 测试与质量门槛
+
+```bash
+python -m ruff check backend
+python -m mypy backend/app --ignore-missing-imports --no-incremental
+python -m pytest backend/tests --cov=backend.app --cov-report=term-missing
+python backend/evals/run.py
+npm --prefix frontend test -- --run
+npm --prefix frontend run build
+docker compose up --build -d
+npm --prefix frontend run test:e2e
+```
+
+当前确定性验收：后端 16 个测试，覆盖率 87%+；9 个固定 AI 场景全部通过。CI 同时执行 Ruff、mypy、前端测试/构建、Playwright、Docker、Alembic 重复升级与 Gitleaks。
+
+评测涵盖高意向制造、低意向资料、明确拒绝、价格/合同、知识边界、前后冲突、Prompt 注入、缺字段和 Intent 边界。真实 OpenAI 评测需要显式提供测试密钥，不在公共 CI 消耗额度。
+
+## Railway 部署
+
+1. 创建单实例 Railway 服务并连接私有 GitHub 仓库。
+2. 挂载 Volume 到 `/app/data`，设置 `DATABASE_URL=sqlite:////app/data/julu.db`。
+3. 配置生产变量；健康检查使用 `/api/health`。
+4. 部署日志应先显示 Alembic 到 `0002`，随后启动 Uvicorn。
+5. 对公网 URL 执行健康、真实 AI、测试日历、白名单邮件、失败分支和移动端冒烟。
+
+`railway.toml` 与 Dockerfile 已提供构建、健康检查和启动迁移配置。创建远程仓库、Railway 服务以及真实三方调用需要相应账号与测试凭证。
+
+## 安全与限制
+
+- 不保存模型原始响应，只保存脱敏白名单摘要。测试环境仅在显式开启 `STORE_RAW_AI_RESPONSE` 时可短期保留。
+- 401/403 不重试；429、网络和 5xx 有限退避。Calendar 创建失败释放 Slot，不更新 Meeting；非邮件白名单禁止外发。
+- 当前为单管理员签名 Cookie，没有 RBAC、密码重置和 OIDC，仅适合面试 Demo。
+- SQLite 与内置调度器只支持单实例；生产扩展应改 PostgreSQL 和独立 Worker。
+
+更多材料：[演示脚本](docs/demo-script.md) · [面试答辩](docs/interview-qa.md) · [运行与安全](docs/operations-security.md) · [Prompt 与 Schema](docs/ai-prompt-schema.md)。
+
+## 验收截图
+
+![官网桌面端](docs/screenshots/homepage.png)
+
+![外部服务状态后台](docs/screenshots/admin-integrations.png)
