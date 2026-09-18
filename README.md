@@ -1,8 +1,8 @@
 # JULU AI 销售自动化系统
 
-面向北京聚路国际 AI 工程师实操 B 题的作品级 Demo：从官网留资开始，由真实 DeepSeek、SiliconFlow 托管模型或 OpenAI 模型完成个性化接待、事实提取、五维评分与下一动作判断；应用负责状态机、人工优先、幂等、调度与持久化；Google Calendar 和 Resend 负责可验证的外部动作。
+面向北京聚路国际 AI 工程师实操 B 题的作品级 Demo：从官网留资开始，由 SiliconFlow 托管的真实 DeepSeek 模型完成个性化接待、事实提取、五维评分与下一动作判断；应用负责状态机、人工优先、幂等、调度与持久化；Google Calendar 负责已验证的真实预约。OpenAI 与 DeepSeek 官方接口保留为可切换 Provider，Resend 邮件属于已实现但当前演示环境未配置的加分模块。
 
-> 默认 `DEMO_MODE=true` 仅用于离线启动和 CI。正式演示应配置真实 AI Provider、专用测试日历和本人测试邮箱，并将 `DEMO_MODE=false`。
+> 默认 `DEMO_MODE=true` 仅用于离线启动和 CI。当前线上主演示使用 `DEMO_MODE=false`、SiliconFlow `deepseek-ai/DeepSeek-V4-Flash` 与专用 Google 测试日历。
 
 ## 五分钟启动
 
@@ -20,7 +20,7 @@ DEMO_MODE=false
 AI_PROVIDER=siliconflow
 SILICONFLOW_API_KEY=...
 SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
-SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V3.2
+SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V4-Flash
 ADMIN_USERNAME=...
 ADMIN_PASSWORD=...
 SESSION_SECRET=至少32位随机字符串
@@ -28,12 +28,9 @@ COOKIE_SECURE=true
 CALENDAR_PROVIDER=google
 GOOGLE_CALENDAR_ID=专用测试日历ID
 GOOGLE_SERVICE_ACCOUNT_JSON={...服务账号 JSON...}
-RESEND_API_KEY=...
-RESEND_FROM_EMAIL=已验证发件地址
-EMAIL_TEST_ALLOWLIST=本人测试邮箱,公司提供的测试邮箱
 ```
 
-Google 服务账号必须被共享为专用测试日历的可编辑成员。Resend 对非白名单收件人只记录 `Blocked`，不会外发。不要使用真实客户数据。
+Google 服务账号必须被共享为专用测试日历的可编辑成员。不要使用真实客户数据。
 
 本地 Docker 推荐不要把私钥 JSON 展开到 `.env`：将下载文件保存为 `secrets/google-service-account.json`（该目录已被 Git 忽略），并设置 `GOOGLE_SERVICE_ACCOUNT_FILE=/app/secrets/google-service-account.json`。Railway 无本地文件挂载时使用 `GOOGLE_SERVICE_ACCOUNT_JSON` Secret。
 
@@ -46,7 +43,7 @@ Google 服务账号必须被共享为专用测试日历的可编辑成员。Rese
 - 五维评分强类型校验；分项上限和总分必须一致，Intent 由服务端纠正；二次结构失败时安全降级且不改业务状态。
 - `AvailabilitySlot` 原子占用和数据库唯一约束；同 Lead 重复请求返回原预约，不同 Lead 竞争同一 Slot 只有一个成功。
 - Google FreeBusy、事件创建与取消；只有本地 Slot 和外部日历均成功才进入 Meeting。
-- Follow-up 生成、审批、定时执行、租约回收、最多三次重试、取消和审计；Resend 保存脱敏收件人及 Provider ID。
+- 加分模块已实现 Follow-up 生成、审批、定时执行、租约回收、最多三次重试、取消、审计和 Resend 适配器；当前线上未配置 Resend，不宣称完成真实邮件投递。
 - 后台包含 Lead 搜索筛选、详情证据链、人工接管、手动状态、预约、Follow-up、AI 监控、日志和集成状态。
 - HttpOnly Session、CSRF、防登录爆破、安全响应头、同源部署、请求长度限制和统一敏感数据脱敏。
 - Alembic 是正式环境唯一建库与升级入口；容器启动迁移失败即停止。
@@ -63,7 +60,7 @@ flowchart LR
   WF --> DB[(SQLite + Railway Volume)]
   WF --> CAL[Google Calendar]
   SCH[数据库轮询调度器] --> DB
-  SCH --> MAIL[Resend]
+  SCH -. 可选且当前未配置 .-> MAIL[Resend]
   API --> AUDIT[AIInvocation / ActivityLog / 状态历史]
   AUDIT --> DB
 ```
@@ -93,9 +90,9 @@ docker compose up --build -d
 npm --prefix frontend run test:e2e
 ```
 
-当前确定性验收：后端 16 个测试，覆盖率 87%+；9 个固定 AI 场景全部通过。CI 同时执行 Ruff、mypy、前端测试/构建、Playwright、Docker、Alembic 重复升级与 Gitleaks。
+当前确定性验收：后端 19 个测试，覆盖率 88%+；9 个固定 AI 场景全部通过。CI 同时执行 Ruff、mypy、前端测试/构建、Playwright、Docker、Alembic 重复升级与 Gitleaks。
 
-评测涵盖高意向制造、低意向资料、明确拒绝、价格/合同、知识边界、前后冲突、Prompt 注入、缺字段和 Intent 边界。真实 DeepSeek/OpenAI 评测需要显式提供测试密钥，不在公共 CI 消耗额度。
+评测涵盖高意向制造、低意向资料、明确拒绝、价格/合同、知识边界、前后冲突、Prompt 注入、缺字段和 Intent 边界。线上已用虚构客户数据验证 SiliconFlow `deepseek-ai/DeepSeek-V4-Flash` 的真实调用；公共 CI 不注入密钥，也不消耗模型额度。
 
 ## Railway 部署
 
@@ -103,14 +100,15 @@ npm --prefix frontend run test:e2e
 2. 挂载 Volume 到 `/app/data`，设置 `DATABASE_URL=sqlite:////app/data/julu.db`。
 3. 配置生产变量；健康检查使用 `/api/health`。
 4. 部署日志应先显示 Alembic 到 `0002`，随后启动 Uvicorn。
-5. 对公网 URL 执行健康、真实 AI、测试日历、白名单邮件、失败分支和移动端冒烟。
+5. 对公网 URL 执行健康、真实 AI、测试日历、失败分支和移动端冒烟；仅在配置 Resend 时执行白名单邮件验收。
 
 `railway.toml` 与 Dockerfile 已提供构建、健康检查和启动迁移配置。创建远程仓库、Railway 服务以及真实三方调用需要相应账号与测试凭证。
 
 ## 安全与限制
 
 - 不保存模型原始响应，只保存脱敏白名单摘要。测试环境仅在显式开启 `STORE_RAW_AI_RESPONSE` 时可短期保留。
-- 401/403 不重试；429、网络和 5xx 有限退避。Calendar 创建失败释放 Slot，不更新 Meeting；非邮件白名单禁止外发。
+- 401/403 不重试；429、网络和 5xx 有限退避。Calendar 创建失败释放 Slot，不更新 Meeting；若启用可选邮件模块，非白名单地址禁止外发。
+- 当前线上未配置 Resend，因此不演示或宣称真实邮件送达；这不影响 B 题必做的 AI 销售和预约链路。
 - 当前为单管理员签名 Cookie，没有 RBAC、密码重置和 OIDC，仅适合面试 Demo。
 - SQLite 与内置调度器只支持单实例；生产扩展应改 PostgreSQL 和独立 Worker。
 

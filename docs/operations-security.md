@@ -6,7 +6,7 @@
 - 管理 Cookie 为 HttpOnly、SameSite=Lax；生产启用 Secure/HSTS。写请求必须同时携带 CSRF Cookie 和 Header。
 - 登录失败按来源限流；请求体上限 1 MB；统一设置 CSP、X-Frame-Options、nosniff 和 Referrer-Policy。
 - Redactor 处理邮箱、电话、Cookie、Authorization、API Key、Token 和服务账号字段；ActivityLog、AIInvocation 与异常摘要均走脱敏。
-- 邮件必须命中 `EMAIL_TEST_ALLOWLIST`，否则保存 `Blocked` 且不访问 Resend。
+- 若启用可选邮件模块，收件人必须命中 `EMAIL_TEST_ALLOWLIST`，否则保存 `Blocked` 且不访问 Resend；当前线上未配置 Resend。
 - Gitleaks 在 CI 扫描仓库；公开前仍需在本机执行 `gitleaks git --log-opts="--all"` 扫描完整历史。
 
 ## 故障矩阵
@@ -33,7 +33,7 @@
 1. `APP_ENV=production`、`DEMO_MODE=false`、`COOKIE_SECURE=true`。
 2. 强随机管理员密码和至少 32 位 Session Secret。
 3. Railway 单实例，Volume 挂载 `/app/data`，数据库使用绝对路径。
-4. DeepSeek/OpenAI、Google 服务账号、Resend 使用最小权限测试资源；禁止真实批量触达。
+4. SiliconFlow/DeepSeek/OpenAI 与 Google 服务账号使用最小权限测试资源；若启用可选 Resend，也只允许本人测试邮箱，禁止真实批量触达。
 5. 完成一次成功和一次可控失败，并在后台验证 IntegrationEvent、AIInvocation 与 ActivityLog。
 6. 扫描代码、镜像、日志和全部 Git 历史，确认无密钥、服务账号 JSON 或客户数据。
 7. 备份 SQLite Volume；部署前后记录 Alembic revision。

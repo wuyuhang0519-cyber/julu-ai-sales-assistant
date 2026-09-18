@@ -2,7 +2,7 @@
 
 ## AI 为什么是真实且可验证的？
 
-主演示关闭 Demo Provider，由 DeepSeek API 生成 JSON，再由服务端强类型 Schema 校验；失败时进行一次结构修复，仍失败则安全降级。每轮保存模型、Prompt 版本、消息 ID、Token、耗时、请求 ID、验证状态、修复次数、知识引用和评分证据；原始对话与事实来源可逐项对照。OpenAI Responses Provider 仍可通过环境变量切换。
+主演示关闭 Demo Provider，由 SiliconFlow 托管的 `deepseek-ai/DeepSeek-V4-Flash` 生成 JSON，再由服务端强类型 Schema 校验；失败时进行一次结构修复，仍失败则安全降级。每轮保存真实 Provider、模型、Prompt 版本、消息 ID、Token、耗时、请求 ID、验证状态、修复次数、知识引用和评分证据；原始对话与事实来源可逐项对照。OpenAI Responses 与 DeepSeek 官方 Provider 仍可通过环境变量切换。
 
 ## 为什么不是固定问卷？
 
@@ -30,7 +30,7 @@
 
 ## Follow-up 如何避免重复发送？
 
-任务有业务幂等键、状态机、条件领取与 lease。只有人工审批后的 Scheduled 可执行；崩溃后回收过期 lease；Meeting、Closed 或人工接管会取消/跳过任务。Resend 只允许白名单收件人。
+任务有业务幂等键、状态机、条件领取与 lease。只有人工审批后的 Scheduled 可执行；崩溃后回收过期 lease；Meeting、Closed 或人工接管会取消/跳过任务。Resend 适配器只允许白名单收件人，但它属于 B 题加分模块，当前线上未配置，也不宣称完成真实邮件送达。
 
 ## 为什么用 SQLite 和进程内调度器？
 

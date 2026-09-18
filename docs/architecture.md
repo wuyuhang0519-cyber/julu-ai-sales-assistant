@@ -17,9 +17,9 @@ flowchart TB
   end
   Public --> Workflow
   Admin --> Auth --> Workflow
-  Workflow --> Validate --> AI[DeepSeek Chat / OpenAI Responses]
+  Workflow --> Validate --> AI[SiliconFlow DeepSeek / DeepSeek 官方 / OpenAI]
   Workflow --> Calendar[Google Calendar]
-  Scheduler --> Resend[Resend API]
+  Scheduler -. 可选且当前未配置 .-> Resend[Resend API]
   Workflow --> SQLite[(SQLite Volume)]
   Scheduler --> SQLite
   Workflow --> Redactor --> SQLite
@@ -48,7 +48,7 @@ erDiagram
 ```mermaid
 flowchart LR
   Input[客户输入 + Profile + 最近消息] --> Prompt[版本化 Prompt + 知识库]
-  Prompt --> Model[DeepSeek JSON 模式 / OpenAI 严格 JSON Schema]
+  Prompt --> Model[SiliconFlow 或 DeepSeek JSON 模式 / OpenAI 严格 JSON Schema]
   Model --> Check{Pydantic 校验}
   Check -->|通过| Guard[证据 / 分数 / Intent / 人工优先]
   Check -->|失败| Repair[一次结构化修复]
@@ -94,7 +94,7 @@ stateDiagram-v2
   [*] --> PendingApproval
   PendingApproval --> Scheduled: 管理员审批
   Scheduled --> Processing: 原子领取 + lease
-  Processing --> Sent: Resend / DryRun 成功
+  Processing --> Sent: 可选 Resend / DryRun 成功
   Processing --> Scheduled: 可重试失败
   Processing --> Failed: 不可重试或达到上限
   Processing --> Skipped: Meeting / Closed / 人工接管
@@ -104,4 +104,4 @@ stateDiagram-v2
   Failed --> Scheduled: 人工重试
 ```
 
-所有时间以 UTC 存储。客户端提交无偏移时间时，服务端按请求中的 IANA 时区解释；返回时间显式携带 UTC 偏移。
+所有时间以 UTC 存储。客户端提交无偏移时间时，服务端按请求中的 IANA 时区解释；返回时间显式携带 UTC 偏移。Follow-up 与 Resend 是 B 题加分模块；当前线上未配置 Resend，图中表示已实现的可选扩展路径。

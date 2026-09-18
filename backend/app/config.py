@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     deepseek_model: str = "deepseek-chat"
     siliconflow_api_key: str = ""
     siliconflow_base_url: str = "https://api.siliconflow.cn/v1"
-    siliconflow_model: str = "deepseek-ai/DeepSeek-V3.2"
+    siliconflow_model: str = "deepseek-ai/DeepSeek-V4-Flash"
     ai_timeout_seconds: int = 30
     ai_max_retries: int = 2
     admin_username: str = ""
