@@ -1,6 +1,6 @@
 import os
 from datetime import datetime,timedelta,timezone
-os.environ.update({"DATABASE_URL":"sqlite:///./test_julu.db","DEMO_MODE":"true","AI_PROVIDER":"openai","OPENAI_API_KEY":"","DEEPSEEK_API_KEY":"","ADMIN_USERNAME":"admin","ADMIN_PASSWORD":"change-me"})
+os.environ.update({"DATABASE_URL":"sqlite:///./test_julu.db","DEMO_MODE":"true","AI_PROVIDER":"openai","OPENAI_API_KEY":"","DEEPSEEK_API_KEY":"","SILICONFLOW_API_KEY":"","ADMIN_USERNAME":"admin","ADMIN_PASSWORD":"change-me"})
 from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.ai_service import intent,demo_result
@@ -145,6 +145,25 @@ def test_deepseek_json_provider_path(monkeypatch):
             execution=run_ai(lead,lead.profile,lead.messages,False)
             assert execution.result and execution.provider=='deepseek' and execution.input_tokens==10 and calls[0]['response_format']=={'type':'json_object'}
         finally:settings.demo_mode,settings.ai_provider,settings.deepseek_api_key=old
+
+def test_siliconflow_json_provider_path(monkeypatch):
+    from types import SimpleNamespace
+    d=create('siliconflow-fake')
+    with SessionLocal() as db:
+        lead=db.get(Lead,d['lead']['id']);valid=demo_result(lead,lead.profile,None,False).model_dump_json();calls=[]
+        class FakeCompletions:
+            def create(self,**kwargs):
+                calls.append(kwargs);return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=valid))],usage=SimpleNamespace(prompt_tokens=11,completion_tokens=21))
+        class FakeOpenAI:
+            def __init__(self,**kwargs):self.chat=SimpleNamespace(completions=FakeCompletions())
+        old=(settings.demo_mode,settings.ai_provider,settings.siliconflow_api_key)
+        try:
+            settings.demo_mode=False;settings.ai_provider='siliconflow';settings.siliconflow_api_key='test-only'
+            monkeypatch.setattr('backend.app.ai_service.OpenAI',FakeOpenAI)
+            execution=run_ai(lead,lead.profile,lead.messages,False)
+            assert execution.result and execution.provider=='siliconflow' and execution.model==settings.siliconflow_model
+            assert execution.input_tokens==11 and calls[0]['response_format']=={'type':'json_object'}
+        finally:settings.demo_mode,settings.ai_provider,settings.siliconflow_api_key=old
 
 def test_admin_operational_endpoints_and_manual_priority():
     d=create('admin-ops');csrf=login();lid=d['lead']['id']

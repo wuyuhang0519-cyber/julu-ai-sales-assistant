@@ -1,8 +1,8 @@
 # JULU AI 销售自动化系统
 
-面向北京聚路国际 AI 工程师实操 B 题的作品级 Demo：从官网留资开始，由真实 DeepSeek 或 OpenAI 模型完成个性化接待、事实提取、五维评分与下一动作判断；应用负责状态机、人工优先、幂等、调度与持久化；Google Calendar 和 Resend 负责可验证的外部动作。
+面向北京聚路国际 AI 工程师实操 B 题的作品级 Demo：从官网留资开始，由真实 DeepSeek、SiliconFlow 托管模型或 OpenAI 模型完成个性化接待、事实提取、五维评分与下一动作判断；应用负责状态机、人工优先、幂等、调度与持久化；Google Calendar 和 Resend 负责可验证的外部动作。
 
-> 默认 `DEMO_MODE=true` 仅用于离线启动和 CI。正式演示应配置真实 DeepSeek/OpenAI、专用测试日历和本人测试邮箱，并将 `DEMO_MODE=false`。
+> 默认 `DEMO_MODE=true` 仅用于离线启动和 CI。正式演示应配置真实 AI Provider、专用测试日历和本人测试邮箱，并将 `DEMO_MODE=false`。
 
 ## 五分钟启动
 
@@ -17,10 +17,10 @@
 ```env
 APP_ENV=production
 DEMO_MODE=false
-AI_PROVIDER=deepseek
-DEEPSEEK_API_KEY=...
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-chat
+AI_PROVIDER=siliconflow
+SILICONFLOW_API_KEY=...
+SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
+SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V3.2
 ADMIN_USERNAME=...
 ADMIN_PASSWORD=...
 SESSION_SECRET=至少32位随机字符串
@@ -42,7 +42,7 @@ Google 服务账号必须被共享为专用测试日历的可编辑成员。Rese
 ## 已实现能力
 
 - 首次接待结合姓名、公司、行业、地区、服务、需求和官网；多轮对话基于已知事实动态提问。
-- Provider 架构支持 DeepSeek Chat Completions JSON 模式和 OpenAI Responses API JSON Schema；保存模型、Prompt 版本、消息 ID、Token、耗时、请求 ID、知识引用、验证与修复次数。
+- Provider 架构支持 DeepSeek、SiliconFlow 的 Chat Completions JSON 模式和 OpenAI Responses API JSON Schema；保存真实提供商、模型、Prompt 版本、消息 ID、Token、耗时、请求 ID、知识引用、验证与修复次数。
 - 五维评分强类型校验；分项上限和总分必须一致，Intent 由服务端纠正；二次结构失败时安全降级且不改业务状态。
 - `AvailabilitySlot` 原子占用和数据库唯一约束；同 Lead 重复请求返回原预约，不同 Lead 竞争同一 Slot 只有一个成功。
 - Google FreeBusy、事件创建与取消；只有本地 Slot 和外部日历均成功才进入 Meeting。
@@ -58,7 +58,7 @@ flowchart LR
   V[访客 React] --> API[FastAPI]
   O[运营后台 React] --> API
   API --> WF[销售工作流 / 状态机]
-  WF --> AI[DeepSeek / OpenAI API]
+  WF --> AI[DeepSeek / SiliconFlow / OpenAI API]
   AI --> KB[版本化知识库]
   WF --> DB[(SQLite + Railway Volume)]
   WF --> CAL[Google Calendar]

@@ -53,6 +53,7 @@ def _extract_chat_response(rsp):
 def _provider_settings():
     provider=settings.ai_provider.lower().strip()
     if provider=="deepseek":return provider,settings.deepseek_api_key,settings.deepseek_base_url,settings.deepseek_model
+    if provider=="siliconflow":return provider,settings.siliconflow_api_key,settings.siliconflow_base_url,settings.siliconflow_model
     if provider=="openai":return provider,settings.openai_api_key,settings.openai_base_url or None,settings.openai_model
     return provider,"",None,""
 
@@ -62,13 +63,13 @@ def run_ai(lead,profile,messages,first=False)->AIExecution:
         result=demo_result(lead,profile,messages[-1].content if messages and messages[-1].role=="user" else None,first)
         return AIExecution(result,rid,"demo","demo-deterministic",int((time.perf_counter()-start)*1000),"Valid",response_summary=redact({"score":result.lead_score,"intent":result.intent,"action":result.next_action}))
     provider,api_key,base_url,model=_provider_settings()
-    if provider not in {"openai","deepseek"}:return AIExecution(None,rid,provider,model,0,"Failed",error_type="unsupported_provider")
+    if provider not in {"openai","deepseek","siliconflow"}:return AIExecution(None,rid,provider,model,0,"Failed",error_type="unsupported_provider")
     if not api_key:return AIExecution(None,rid,provider,model,0,"Failed",error_type="missing_api_key")
     client=OpenAI(api_key=api_key,base_url=base_url,timeout=settings.ai_timeout_seconds,max_retries=settings.ai_max_retries);schema=AIResult.model_json_schema();prompt=_prompt(lead,profile,messages,first);raw="";repair=0
     try:
         for attempt in range(2):
             repair=attempt;instruction=prompt if attempt==0 else f"修复下面输出使其严格符合JSON Schema。只输出JSON。\nSchema:{json.dumps(schema,ensure_ascii=False)}\n原输出:{raw[:8000]}"
-            if provider=="deepseek":
+            if provider in {"deepseek","siliconflow"}:
                 instruction=f"{instruction}\nJSON Schema:{json.dumps(schema,ensure_ascii=False)}"
                 chat_rsp=client.chat.completions.create(model=model,messages=[{"role":"system","content":instruction},{"role":"user","content":"请完成销售判断，只输出一个有效的 JSON 对象。"}],response_format={"type":"json_object"},temperature=0)
                 raw,it,ot=_extract_chat_response(chat_rsp)

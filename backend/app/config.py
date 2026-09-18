@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
+    siliconflow_api_key: str = ""
+    siliconflow_base_url: str = "https://api.siliconflow.cn/v1"
+    siliconflow_model: str = "deepseek-ai/DeepSeek-V3.2"
     ai_timeout_seconds: int = 30
     ai_max_retries: int = 2
     admin_username: str = ""
@@ -39,7 +42,12 @@ class Settings(BaseSettings):
 
     @property
     def selected_ai_key(self) -> str:
-        return self.deepseek_api_key if self.ai_provider.lower() == "deepseek" else self.openai_api_key
+        provider = self.ai_provider.lower().strip()
+        if provider == "deepseek":
+            return self.deepseek_api_key
+        if provider == "siliconflow":
+            return self.siliconflow_api_key
+        return self.openai_api_key
 
     def validate_runtime(self) -> None:
         if self.is_production and (not self.admin_password or not self.session_secret or len(self.session_secret) < 32):
