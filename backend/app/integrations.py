@@ -1,6 +1,7 @@
 import json,time
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 import httpx
 from .config import settings
 from .security import redact_email
@@ -39,7 +40,7 @@ class CalendarService:
         if not self.configured:return {"provider":"local","event_id":None,"url":None}
         try:
             description=f"{notes or 'JULU AI 官网客资预约'}\n测试联系人：{email}"
-            svc=self._service(); body={"summary":f"JULU AI 需求诊断 - {name}","description":description,"start":{"dateTime":start.isoformat(),"timeZone":"UTC"},"end":{"dateTime":end.isoformat(),"timeZone":"UTC"}}
+            svc=self._service(); body:dict[str,Any]={"summary":f"JULU AI 需求诊断 - {name}","description":description,"start":{"dateTime":start.isoformat(),"timeZone":"UTC"},"end":{"dateTime":end.isoformat(),"timeZone":"UTC"}}
             if settings.google_calendar_invite_attendees:body["attendees"]=[{"email":email}]
             event=svc.events().insert(calendarId=settings.google_calendar_id,body=body,sendUpdates="none").execute()
             return {"provider":"google","event_id":event.get("id"),"url":event.get("htmlLink")}
