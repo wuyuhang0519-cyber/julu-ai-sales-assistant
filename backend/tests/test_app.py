@@ -54,7 +54,7 @@ def test_redaction_and_csrf():
 def test_followup_created_and_integration_status():
     create('followup-lead'); csrf=login(); tasks=client.get('/api/admin/follow-ups').json(); assert tasks and tasks[0]['status']=='PendingApproval'
     r=client.post(f"/api/admin/follow-ups/{tasks[0]['id']}/approve",json={},headers={'X-CSRF-Token':csrf}); assert r.status_code==200 and r.json()['status']=='Scheduled'
-    status=client.get('/api/admin/integrations/status').json(); assert set(status)=={'ai','google_calendar','resend'}
+    status=client.get('/api/admin/integrations/status').json(); assert {'ai','google_calendar','resend','whatsapp','hubspot','salesforce','rag'}.issubset(set(status))
 
 def test_schema_rejects_invalid_dimension_and_total():
     bad={"reply":"x","lead_score":101,"intent":"High","score_breakdown":{},"score_reason":"x","next_action":"offer_meeting","suggested_status":"Qualified","conversation_summary":"x"}
@@ -171,3 +171,35 @@ def test_admin_operational_endpoints_and_manual_priority():
     assert client.post(f'/api/admin/leads/{lid}/release',headers={'X-CSRF-Token':csrf}).status_code==200
     for endpoint in ['/api/admin/appointments','/api/admin/follow-ups','/api/admin/activity-logs','/api/admin/ai-invocations','/api/admin/ai-metrics','/api/admin/email-deliveries']:
         assert client.get(endpoint).status_code==200
+
+def test_rag_search_and_multilingual_demo_reply():
+    login();hits=client.post('/api/admin/knowledge/search',json={'query':'GEO 落地页 AI 搜索优化','top_k':3})
+    assert hits.status_code==200 and hits.json()['items'] and hits.json()['items'][0]['ref'].startswith('KB-')
+    data={**payload,'email':'english@example.com','initial_requirement':'We need better AI visibility in the US market within three months','preferred_language':'en-US'}
+    created=client.post('/api/public/leads',json=data,headers={'Idempotency-Key':'english-lead'}).json()
+    token=created['lead']['public_token']
+    reply=client.post(f'/api/public/leads/{token}/messages',json={'content':'Our budget is confirmed and I am the decision maker','client_message_id':'english-msg'}).json()['assistant_message']['content']
+    assert any(word in reply.lower() for word in ['thanks','next','target','information'])
+
+def test_bonus_quote_proposal_channels_and_crm_dry_runs():
+    data={**payload,'email':'bonus@example.com','phone':'+8613812345678','preferred_language':'zh-CN'}
+    created=client.post('/api/public/leads',json=data,headers={'Idempotency-Key':'bonus-lead'}).json();lead_id=created['lead']['id'];csrf=login()
+    quote=client.post(f'/api/admin/leads/{lead_id}/quotes',json={'package_code':'growth','discount_percent':5},headers={'X-CSRF-Token':csrf})
+    assert quote.status_code==201 and quote.json()['total']>0 and quote.json()['status']=='Draft'
+    proposal=client.post(f'/api/admin/leads/{lead_id}/proposals',json={'language':'zh-CN','quote_id':quote.json()['id']},headers={'X-CSRF-Token':csrf})
+    assert proposal.status_code==201 and proposal.json()['knowledge_refs'] and proposal.json()['status']=='Draft'
+    old_email=settings.email_test_allowlist;old_wa=settings.whatsapp_test_allowlist
+    try:
+        settings.email_test_allowlist='bonus@example.com';settings.whatsapp_test_allowlist='8613812345678'
+        email=client.post(f'/api/admin/leads/{lead_id}/channels/send',json={'channel':'email','recipient':'bonus@example.com','subject':'test','content':'hello'},headers={'X-CSRF-Token':csrf})
+        whatsapp=client.post(f'/api/admin/leads/{lead_id}/channels/send',json={'channel':'whatsapp','recipient':'+8613812345678','subject':'test','content':'hello'},headers={'X-CSRF-Token':csrf})
+        assert email.status_code==200 and email.json()['status']=='DryRun'
+        assert whatsapp.status_code==200 and whatsapp.json()['status']=='DryRun'
+    finally:
+        settings.email_test_allowlist=old_email;settings.whatsapp_test_allowlist=old_wa
+    hubspot=client.post(f'/api/admin/leads/{lead_id}/crm-sync',json={'provider':'hubspot'},headers={'X-CSRF-Token':csrf})
+    salesforce=client.post(f'/api/admin/leads/{lead_id}/crm-sync',json={'provider':'salesforce'},headers={'X-CSRF-Token':csrf})
+    assert hubspot.status_code==200 and hubspot.json()['status']=='DryRun'
+    assert salesforce.status_code==200 and salesforce.json()['status']=='DryRun'
+    detail=client.get(f'/api/admin/leads/{lead_id}').json()
+    assert detail['quotes'] and detail['proposals'] and len(detail['channel_deliveries'])==2 and len(detail['crm_syncs'])==2

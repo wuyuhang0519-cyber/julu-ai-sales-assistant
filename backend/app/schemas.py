@@ -8,7 +8,7 @@ Action=Literal["continue_qualification","recommend_service","share_material","of
 
 class LeadCreate(BaseModel):
     name:str=Field(min_length=2,max_length=100); company:str=Field(min_length=2,max_length=160); email:EmailStr; industry:str; country:str; interested_service:str
-    website:str|None=None; initial_requirement:str|None=Field(default=None,max_length=2000)
+    website:str|None=None; phone:str|None=Field(default=None,max_length=40); preferred_language:Literal["auto","zh-CN","en-US","es-ES"]="auto"; initial_requirement:str|None=Field(default=None,max_length=2000)
 class MessageCreate(BaseModel): content:str=Field(min_length=1,max_length=4000); client_message_id:str=Field(min_length=4,max_length=100)
 class AppointmentCreate(BaseModel): start_time:datetime; timezone:str; attendee_name:str; attendee_email:EmailStr; notes:str|None=None
 class LoginCreate(BaseModel): username:str; password:str
@@ -16,6 +16,12 @@ class LeadPatch(BaseModel): status:Status|None=None
 class TakeoverBody(BaseModel): reason:str="人工跟进"
 class AppointmentPatch(BaseModel): status:Literal["Confirmed","Cancelled"]
 class FollowUpPatch(BaseModel): scheduled_at:datetime|None=None
+class KnowledgeSearch(BaseModel): query:str=Field(min_length=2,max_length=500); top_k:int=Field(default=4,ge=1,le=10)
+class QuoteCreate(BaseModel): package_code:Literal["starter","growth","enterprise"]="growth"; discount_percent:int=Field(default=0,ge=0,le=20)
+class QuotePatch(BaseModel): status:Literal["Approved","Rejected"]
+class ProposalCreate(BaseModel): language:Literal["zh-CN","en-US","es-ES"]="zh-CN"; quote_id:int|None=None
+class ChannelSend(BaseModel): channel:Literal["email","whatsapp"]; recipient:str=Field(min_length=3,max_length=220); subject:str=Field(default="JULU AI 后续建议",max_length=200); content:str=Field(min_length=1,max_length=8000)
+class CRMSyncCreate(BaseModel): provider:Literal["hubspot","salesforce"]
 
 class ScoreDimension(BaseModel):
     score:int=Field(ge=0)

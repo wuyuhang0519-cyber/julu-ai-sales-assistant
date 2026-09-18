@@ -1,0 +1,32 @@
+{
+  "demo_only": true,
+  "currency": "CNY",
+  "packages": {
+    "starter": {
+      "name": "基础诊断",
+      "items": [
+        {"name": "AI 可见度与技术诊断", "price": 9800}
+      ]
+    },
+    "growth": {
+      "name": "增长实施",
+      "items": [
+        {"name": "AI 可见度与技术诊断", "price": 9800},
+        {"name": "GEO 内容与落地页实施", "price": 30000}
+      ]
+    },
+    "enterprise": {
+      "name": "企业增长",
+      "items": [
+        {"name": "AI 可见度与技术诊断", "price": 9800},
+        {"name": "GEO 内容与落地页实施", "price": 30000},
+        {"name": "多市场内容分发与年度监测", "price": 58200}
+      ]
+    }
+  },
+  "assumptions": [
+    "演示价格目录，仅用于自动报价工作流验证，不构成正式商业报价",
+    "报价必须由销售人员审批后才能对外发送",
+    "税费、媒体预算、翻译和第三方工具费用需另行确认"
+  ]
+}

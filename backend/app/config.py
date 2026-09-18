@@ -35,6 +35,19 @@ class Settings(BaseSettings):
     followup_poll_seconds: int = 15
     followup_demo_delay_seconds: int = 60
     followup_max_attempts: int = 3
+    followup_channels: str = "email"
+    whatsapp_access_token: str = ""
+    whatsapp_phone_number_id: str = ""
+    whatsapp_api_version: str = "v21.0"
+    whatsapp_test_allowlist: str = ""
+    hubspot_access_token: str = ""
+    salesforce_instance_url: str = ""
+    salesforce_access_token: str = ""
+    crm_dry_run: bool = True
+    quote_currency: str = "CNY"
+    quote_valid_days: int = 14
+    rag_top_k: int = 4
+    rag_min_score: float = 0.04
 
     @property
     def is_production(self) -> bool:

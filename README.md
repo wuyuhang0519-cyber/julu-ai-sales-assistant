@@ -119,3 +119,9 @@ npm --prefix frontend run test:e2e
 ![官网桌面端](docs/screenshots/homepage.png)
 
 ![外部服务状态后台](docs/screenshots/admin-integrations.png)
+
+## 全加分功能隔离分支
+
+完整加分功能在 feature/all-bonus-features 独立分支开发，不会自动影响当前 main 与 Railway 稳定版。该版本新增检索式 RAG、中英西多语言、浏览器语音、自动报价、Proposal、WhatsApp、HubSpot/Salesforce 适配器与多渠道审计。
+
+详细完成状态、真实集成边界、配置和验收结果见 [docs/bonus-features.md](docs/bonus-features.md)。第三方密钥未配置时只执行 DryRun/Blocked，不得把适配器代码宣传为已完成真实外部投递。

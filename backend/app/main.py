@@ -12,12 +12,14 @@ from sqlalchemy.orm import Session
 from itsdangerous import URLSafeTimedSerializer
 from .config import settings
 from .database import get_db
-from .models import Lead,LeadProfile,Message,AIDecision,Appointment,ActivityLog,AvailabilitySlot,AIInvocation,LeadStatusHistory,FollowUpTask,EmailDelivery,IntegrationEvent
+from .models import Lead,LeadProfile,Message,AIDecision,Appointment,ActivityLog,AvailabilitySlot,AIInvocation,LeadStatusHistory,FollowUpTask,EmailDelivery,IntegrationEvent,Quote,Proposal,ChannelDelivery,CRMSync
 from .schemas import *
 from .ai_service import run_ai,PROMPT_VERSION
 from .security import redact,redact_text,csrf_token,require_csrf,login_limiter
-from .integrations import calendar_service,email_service,IntegrationError
+from .integrations import calendar_service,email_service,whatsapp_service,crm_service,IntegrationError
 from .scheduler import scheduler_loop,create_followup,cancel_open_followups
+from .bonus_service import create_quote,create_proposal
+from .rag_service import knowledge_base
 
 settings.validate_runtime();serializer=URLSafeTimedSerializer(settings.session_secret,salt="admin")
 
@@ -91,7 +93,7 @@ def create_lead(data:LeadCreate,db:Session=Depends(get_db),idempotency_key:str|N
     if idempotency_key:
         old=db.scalar(select(Lead).where(Lead.idempotency_key==idempotency_key))
         if old:log(db,old.id,"duplicate_request","重复线索请求被幂等拦截");db.commit();return LeadCreated(lead=LeadOut.model_validate(old),first_message=MessageOut.model_validate(old.messages[0]),demo_mode=settings.demo_mode)
-    lead=Lead(public_token=secrets.token_urlsafe(32),idempotency_key=idempotency_key,**data.model_dump());lead.profile=LeadProfile(has_website=bool(data.website),missing_fields=[]);db.add(lead);db.flush();db.add(LeadStatusHistory(lead_id=lead.id,from_status=None,to_status="New",actor="system",reason="官网表单创建"));log(db,lead.id,"lead_created","官网表单创建线索")
+    lead_data=data.model_dump(exclude={"phone","preferred_language"});lead=Lead(public_token=secrets.token_urlsafe(32),idempotency_key=idempotency_key,**lead_data);extra:dict[str,str|None]={"preferred_language":data.preferred_language};extra.update({"phone":data.phone} if data.phone else {});lead.profile=LeadProfile(has_website=bool(data.website),missing_fields=[],additional_facts=extra);db.add(lead);db.flush();db.add(LeadStatusHistory(lead_id=lead.id,from_status=None,to_status="New",actor="system",reason="官网表单创建"));log(db,lead.id,"lead_created","官网表单创建线索")
     execution=run_ai(lead,lead.profile,[],True);inv=apply_ai(db,lead,execution)
     if execution.result:msg=Message(lead_id=lead.id,role="assistant",content=execution.result.reply,model_name=execution.model,model_latency_ms=execution.latency_ms);log(db,lead.id,"ai_first_reply","AI 已生成首次接待",{"invocation_id":inv.id})
     else:msg=Message(lead_id=lead.id,role="assistant",content="抱歉，当前智能助手暂时无法完成判断。你的信息已安全保存，顾问可以继续跟进。",error_code=execution.error_type);log(db,lead.id,"ai_error","首次模型调用失败",{"error_type":execution.error_type})
@@ -168,7 +170,7 @@ def admin_leads(status:str|None=None,intent:str|None=None,search:str|None=None,p
     total=db.scalar(select(func.count()).select_from(q.subquery()));order=Lead.updated_at.asc() if sort=="updated_asc" else Lead.updated_at.desc();return {"items":[LeadOut.model_validate(x) for x in db.scalars(q.order_by(order).offset((page-1)*page_size).limit(page_size))],"total":total,"page":page,"page_size":page_size}
 @app.get("/api/admin/leads/{lead_id}",dependencies=[Depends(admin)])
 def admin_lead(lead_id:int,db:Session=Depends(get_db)):
-    l=get_or_404(db,Lead,lead_id);return {"lead":LeadOut.model_validate(l),"profile":profile_dict(l.profile),"messages":[MessageOut.model_validate(x) for x in l.messages],"decisions":rows(db.scalars(select(AIDecision).where(AIDecision.lead_id==l.id).order_by(AIDecision.created_at.desc()))),"invocations":rows(db.scalars(select(AIInvocation).where(AIInvocation.lead_id==l.id).order_by(AIInvocation.created_at.desc()))),"status_history":rows(db.scalars(select(LeadStatusHistory).where(LeadStatusHistory.lead_id==l.id).order_by(LeadStatusHistory.created_at.desc()))),"appointments":rows(db.scalars(select(Appointment).where(Appointment.lead_id==l.id))),"followups":rows(db.scalars(select(FollowUpTask).where(FollowUpTask.lead_id==l.id))),"logs":rows(db.scalars(select(ActivityLog).where(ActivityLog.lead_id==l.id).order_by(ActivityLog.created_at.desc())))}
+    l=get_or_404(db,Lead,lead_id);return {"lead":LeadOut.model_validate(l),"profile":profile_dict(l.profile),"messages":[MessageOut.model_validate(x) for x in l.messages],"decisions":rows(db.scalars(select(AIDecision).where(AIDecision.lead_id==l.id).order_by(AIDecision.created_at.desc()))),"invocations":rows(db.scalars(select(AIInvocation).where(AIInvocation.lead_id==l.id).order_by(AIInvocation.created_at.desc()))),"status_history":rows(db.scalars(select(LeadStatusHistory).where(LeadStatusHistory.lead_id==l.id).order_by(LeadStatusHistory.created_at.desc()))),"appointments":rows(db.scalars(select(Appointment).where(Appointment.lead_id==l.id))),"followups":rows(db.scalars(select(FollowUpTask).where(FollowUpTask.lead_id==l.id))),"quotes":rows(db.scalars(select(Quote).where(Quote.lead_id==l.id).order_by(Quote.created_at.desc()))),"proposals":rows(db.scalars(select(Proposal).where(Proposal.lead_id==l.id).order_by(Proposal.created_at.desc()))),"channel_deliveries":rows(db.scalars(select(ChannelDelivery).where(ChannelDelivery.lead_id==l.id).order_by(ChannelDelivery.created_at.desc()))),"crm_syncs":rows(db.scalars(select(CRMSync).where(CRMSync.lead_id==l.id).order_by(CRMSync.created_at.desc()))),"logs":rows(db.scalars(select(ActivityLog).where(ActivityLog.lead_id==l.id).order_by(ActivityLog.created_at.desc())))}
 @app.patch("/api/admin/leads/{lead_id}",dependencies=[Depends(admin),Depends(require_csrf)])
 def patch_lead(lead_id:int,data:LeadPatch,db:Session=Depends(get_db)):
     l=get_or_404(db,Lead,lead_id)
@@ -236,11 +238,64 @@ def ai_metrics(db:Session=Depends(get_db)):
     return {"total":len(items),"success_rate":round(success*100/len(items),1) if items else 0,"p50_latency_ms":percentile(.5),"p95_latency_ms":percentile(.95),"repaired":sum(x.validation_status=="Repaired" for x in items),"failed":sum(x.validation_status=="Failed" for x in items),"total_tokens":sum((x.input_tokens or 0)+(x.output_tokens or 0) for x in items),"error_distribution":errors}
 @app.get("/api/admin/email-deliveries",dependencies=[Depends(admin)])
 def deliveries(db:Session=Depends(get_db)):return rows(db.scalars(select(EmailDelivery).order_by(EmailDelivery.created_at.desc()).limit(300)))
+@app.post("/api/admin/knowledge/search",dependencies=[Depends(admin)])
+def public_knowledge_search(data:KnowledgeSearch):
+    return {"items":knowledge_base.search(data.query,data.top_k)}
+
+@app.get("/api/admin/quotes",dependencies=[Depends(admin)])
+def quotes(db:Session=Depends(get_db)):return rows(db.scalars(select(Quote).order_by(Quote.created_at.desc()).limit(300)))
+@app.post("/api/admin/leads/{lead_id}/quotes",dependencies=[Depends(admin),Depends(require_csrf)],status_code=201)
+def generate_quote(lead_id:int,data:QuoteCreate,db:Session=Depends(get_db)):
+    lead=get_or_404(db,Lead,lead_id);quote=create_quote(db,lead,data.package_code,data.discount_percent);log(db,lead.id,"quote_generated","已生成自动报价草案",{"quote_number":quote.quote_number,"package":quote.package_code});db.commit();db.refresh(quote);return rows([quote])[0]
+@app.patch("/api/admin/quotes/{quote_id}",dependencies=[Depends(admin),Depends(require_csrf)])
+def review_quote(quote_id:int,data:QuotePatch,db:Session=Depends(get_db)):
+    quote=get_or_404(db,Quote,quote_id);quote.status=data.status;quote.approved_at=datetime.now(timezone.utc) if data.status=="Approved" else None;log(db,quote.lead_id,"quote_reviewed",f"报价状态更新为 {data.status}",{"quote_number":quote.quote_number});db.commit();return rows([quote])[0]
+
+@app.get("/api/admin/proposals",dependencies=[Depends(admin)])
+def proposals(db:Session=Depends(get_db)):return rows(db.scalars(select(Proposal).order_by(Proposal.created_at.desc()).limit(300)))
+@app.post("/api/admin/leads/{lead_id}/proposals",dependencies=[Depends(admin),Depends(require_csrf)],status_code=201)
+def generate_proposal(lead_id:int,data:ProposalCreate,db:Session=Depends(get_db)):
+    lead=get_or_404(db,Lead,lead_id);quote=get_or_404(db,Quote,data.quote_id) if data.quote_id else None
+    if quote and quote.lead_id!=lead.id:raise HTTPException(409,detail={"code":"quote_lead_mismatch","message":"报价不属于该线索"})
+    proposal=create_proposal(db,lead,data.language,quote);log(db,lead.id,"proposal_generated","已生成 Proposal 草案",{"proposal_number":proposal.proposal_number,"language":data.language});db.commit();db.refresh(proposal);return rows([proposal])[0]
+
+@app.get("/api/admin/channel-deliveries",dependencies=[Depends(admin)])
+def channel_deliveries(db:Session=Depends(get_db)):return rows(db.scalars(select(ChannelDelivery).order_by(ChannelDelivery.created_at.desc()).limit(300)))
+@app.post("/api/admin/leads/{lead_id}/channels/send",dependencies=[Depends(admin),Depends(require_csrf)])
+def send_channel(lead_id:int,data:ChannelSend,db:Session=Depends(get_db)):
+    lead=get_or_404(db,Lead,lead_id)
+    try:
+        result=email_service.send(data.recipient,data.subject,data.content.replace("\n","<br>")) if data.channel=="email" else whatsapp_service.send(data.recipient,data.content)
+    except IntegrationError as e:
+        delivery=ChannelDelivery(lead_id=lead.id,channel=data.channel,recipient_redacted="[REDACTED]",provider="resend" if data.channel=="email" else "meta_whatsapp",status="Failed",error_type=e.code,content_summary=redact_text(data.content[:160]) or "")
+        db.add(delivery);db.add(IntegrationEvent(provider=delivery.provider,operation="send_message",status="Failed",lead_id=lead.id,error_type=e.code,detail={"retryable":e.retryable}));db.commit();raise HTTPException(502,detail={"code":e.code,"message":"渠道发送失败，请检查集成配置"})
+    provider="resend" if data.channel=="email" and result["status"]=="Sent" else "meta_whatsapp" if data.channel=="whatsapp" and result["status"]=="Sent" else "local"
+    delivery=ChannelDelivery(lead_id=lead.id,channel=data.channel,recipient_redacted=result["recipient"],provider=provider,provider_message_id=result["provider_id"],status=result["status"],content_summary=redact_text(data.content[:160]) or "")
+    db.add(delivery);db.add(IntegrationEvent(provider=provider,operation="send_message",status="Success",lead_id=lead.id,detail={"channel":data.channel,"delivery_status":result["status"]}));log(db,lead.id,"channel_message",f"{data.channel} 发送结果：{result['status']}");db.commit();db.refresh(delivery);return rows([delivery])[0]
+
+@app.get("/api/admin/crm-syncs",dependencies=[Depends(admin)])
+def crm_syncs(db:Session=Depends(get_db)):return rows(db.scalars(select(CRMSync).order_by(CRMSync.created_at.desc()).limit(300)))
+@app.post("/api/admin/leads/{lead_id}/crm-sync",dependencies=[Depends(admin),Depends(require_csrf)])
+def sync_crm(lead_id:int,data:CRMSyncCreate,db:Session=Depends(get_db)):
+    lead=get_or_404(db,Lead,lead_id)
+    try:result=crm_service.sync(lead,data.provider)
+    except IntegrationError as e:
+        item=CRMSync(lead_id=lead.id,provider=data.provider,status="Failed",error_type=e.code,detail={"retryable":e.retryable});db.add(item);db.add(IntegrationEvent(provider=data.provider,operation="upsert_lead",status="Failed",lead_id=lead.id,error_type=e.code,detail={"retryable":e.retryable}));db.commit();raise HTTPException(502,detail={"code":e.code,"message":"CRM 同步失败"})
+    item=CRMSync(lead_id=lead.id,provider=data.provider,status=result["status"],external_id=result["external_id"],detail=result["detail"]);db.add(item);db.add(IntegrationEvent(provider=data.provider,operation="upsert_lead",status="Success",lead_id=lead.id,detail={"sync_status":result["status"]}));log(db,lead.id,"crm_sync",f"{data.provider} 同步结果：{result['status']}");db.commit();db.refresh(item);return rows([item])[0]
 @app.get("/api/admin/integrations/status",dependencies=[Depends(admin)])
 def integration_status(db:Session=Depends(get_db)):
     def last(provider):
         x=db.scalar(select(IntegrationEvent).where(IntegrationEvent.provider==provider,IntegrationEvent.status=="Success").order_by(IntegrationEvent.created_at.desc()).limit(1));return x.created_at if x else None
-    ai_provider=settings.ai_provider.lower();return {"ai":{"configured":bool(settings.selected_ai_key),"provider":ai_provider,"mode":"demo" if settings.demo_mode else "real","last_success":last(ai_provider)},"google_calendar":{"configured":calendar_service.configured,"provider":settings.calendar_provider,"last_success":last("google_calendar")},"resend":{"configured":email_service.configured,"allowlist_count":len(email_service.allowlist),"last_success":last("resend")}}
+    ai_provider=settings.ai_provider.lower()
+    return {
+        "ai":{"configured":bool(settings.selected_ai_key),"provider":ai_provider,"mode":"demo" if settings.demo_mode else "real","last_success":last(ai_provider)},
+        "google_calendar":{"configured":calendar_service.configured,"provider":settings.calendar_provider,"last_success":last("google_calendar")},
+        "resend":{"configured":email_service.configured,"allowlist_count":len(email_service.allowlist),"last_success":last("resend")},
+        "whatsapp":{"configured":whatsapp_service.configured,"allowlist_count":len(whatsapp_service.allowlist),"last_success":last("meta_whatsapp")},
+        "hubspot":{"configured":crm_service.configured("hubspot"),"dry_run":settings.crm_dry_run,"last_success":last("hubspot")},
+        "salesforce":{"configured":crm_service.configured("salesforce"),"dry_run":settings.crm_dry_run,"last_success":last("salesforce")},
+        "rag":{"configured":bool(knowledge_base._chunks),"chunk_count":len(knowledge_base._chunks),"mode":"local_hashed_vector"}
+    }
 
 frontend="frontend/dist"
 if os.path.isdir(frontend):

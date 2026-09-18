@@ -15,6 +15,10 @@ import {
   Activity,
   BrainCircuit,
   Plug,
+  Mic,
+  Volume2,
+  Receipt,
+  FileText,
 } from "lucide-react";
 const csrf = () =>
   document.cookie
@@ -83,6 +87,8 @@ function Landing() {
     country: "中国",
     interested_service: "全球 AI 搜索优化",
     website: "",
+    phone: "",
+    preferred_language: "auto",
     initial_requirement: "",
   });
   const submit = async (e: any) => {
@@ -176,11 +182,27 @@ function Landing() {
                   </select>
                 </label>
               </div>
-              <Field
-                label="公司官网（可选）"
-                value={form.website}
-                onChange={(v) => setForm({ ...form, website: v })}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="公司官网（可选）"
+                  value={form.website}
+                  onChange={(v) => setForm({ ...form, website: v })}
+                />
+                <Field
+                  label="WhatsApp 手机号（可选）"
+                  value={form.phone}
+                  onChange={(v) => setForm({ ...form, phone: v })}
+                />
+              </div>
+              <label className="block mt-3">
+                <span className="label">对话语言</span>
+                <select className="input" value={form.preferred_language} onChange={(e) => setForm({ ...form, preferred_language: e.target.value })}>
+                  <option value="auto">自动识别</option>
+                  <option value="zh-CN">中文</option>
+                  <option value="en-US">English</option>
+                  <option value="es-ES">Español</option>
+                </select>
+              </label>
               <label className="block mt-3">
                 <span className="label">初步需求（可选）</span>
                 <textarea
@@ -256,6 +278,7 @@ function Chat() {
   const [slots, setSlots] = useState<any[]>([]);
   const [booked, setBooked] = useState(false);
   const [demoMode, setDemoMode] = useState(true);
+  const [listening, setListening] = useState(false);
   const load = async () => {
     const [l, m] = await Promise.all([
       api("/api/public/leads/" + token),
@@ -296,7 +319,24 @@ function Chat() {
       setBusy(false);
     }
   };
-  const getSlots = async () =>
+  const startVoice = () => {
+    const Recognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!Recognition) return alert("当前浏览器不支持语音识别，请使用最新版 Chrome 或 Edge");
+    const recognition = new Recognition();
+    recognition.lang = profile.additional_facts?.preferred_language === "en-US" ? "en-US" : profile.additional_facts?.preferred_language === "es-ES" ? "es-ES" : "zh-CN";
+    recognition.interimResults = false;
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognition.onresult = (event: any) => setText(event.results[0][0].transcript);
+    recognition.start();
+  };
+  const speak = (value: string) => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(value);
+    utterance.lang = profile.additional_facts?.preferred_language === "en-US" ? "en-US" : profile.additional_facts?.preferred_language === "es-ES" ? "es-ES" : "zh-CN";
+    window.speechSynthesis.speak(utterance);
+  };  const getSlots = async () =>
     setSlots(await api("/api/public/availability?timezone_name=Asia/Shanghai"));
   const book = async (s: any) => {
     try {
@@ -345,6 +385,11 @@ function Chat() {
               {msgs.map((m, i) => (
                 <div className={`bubble ${m.role}`} key={m.id || i}>
                   {m.content}
+                  {m.role === "assistant" && (
+                    <button type="button" className="ml-2 text-blue-600" title="朗读回复" onClick={() => speak(m.content)}>
+                      <Volume2 size={14} />
+                    </button>
+                  )}
                   {m.error_code && (
                     <small className="block mt-2 text-red-600">
                       系统已安全降级
@@ -365,6 +410,10 @@ function Chat() {
                 onChange={(e) => setText(e.target.value)}
                 placeholder="回答问题，或询问聚路 AI 的服务范围"
               />
+              <button type="button" className="btn btn-secondary" onClick={startVoice} disabled={listening || busy} title="语音输入">
+                <Mic size={17} />
+                {listening ? "聆听中" : "语音"}
+              </button>
               <button className="btn btn-primary" disabled={busy}>
                 <MessageSquare size={17} />
                 发送
@@ -1097,6 +1146,23 @@ function LeadDetail() {
               </div>
             </section>
             <section className="card p-5">
+              <h2 className="font-black">加分能力工作台</h2>
+              <p className="text-sm text-slate-500 mt-2">自动报价和 Proposal 都是草案；对外发送前必须人工审批。</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button className="btn btn-secondary" onClick={() => mutate("/api/admin/leads/" + id + "/quotes", "POST", { package_code: "growth", discount_percent: 0 })}><Receipt size={16}/>生成报价</button>
+                <button className="btn btn-secondary" onClick={() => mutate("/api/admin/leads/" + id + "/proposals", "POST", { language: d.profile.additional_facts?.preferred_language === "en-US" ? "en-US" : d.profile.additional_facts?.preferred_language === "es-ES" ? "es-ES" : "zh-CN", quote_id: d.quotes?.[0]?.id || null })}><FileText size={16}/>生成 Proposal</button>
+                <button className="btn btn-secondary" onClick={() => mutate("/api/admin/leads/" + id + "/channels/send", "POST", { channel: "email", recipient: l.email, subject: "JULU AI 后续建议", content: d.proposals?.[0]?.content_markdown || l.conversation_summary })}><Mail size={16}/>发送邮件</button>
+                <button className="btn btn-secondary" onClick={() => { const phone=d.profile.additional_facts?.phone; if(!phone)return alert("该线索未填写 WhatsApp 手机号"); mutate("/api/admin/leads/" + id + "/channels/send", "POST", { channel: "whatsapp", recipient: phone, subject: "JULU AI", content: l.conversation_summary || "JULU AI 后续建议" }); }}><MessageSquare size={16}/>WhatsApp</button>
+                <button className="btn btn-secondary" onClick={() => mutate("/api/admin/leads/" + id + "/crm-sync", "POST", { provider: "hubspot" })}>同步 HubSpot</button>
+                <button className="btn btn-secondary" onClick={() => mutate("/api/admin/leads/" + id + "/crm-sync", "POST", { provider: "salesforce" })}>同步 Salesforce</button>
+              </div>
+              <div className="mt-4 text-sm">
+                <p><b>报价：</b>{d.quotes?.length ? d.quotes[0].quote_number + " · " + d.quotes[0].currency + " " + d.quotes[0].total + " · " + d.quotes[0].status : "暂无"}</p>
+                <p><b>Proposal：</b>{d.proposals?.length ? d.proposals[0].proposal_number + " · " + d.proposals[0].language + " · " + d.proposals[0].status : "暂无"}</p>
+                <p><b>渠道记录：</b>{d.channel_deliveries?.length || 0} 条　<b>CRM 记录：</b>{d.crm_syncs?.length || 0} 条</p>
+              </div>
+              {d.proposals?.[0] && <details className="mt-3"><summary className="cursor-pointer text-brand">预览最新 Proposal</summary><pre className="whitespace-pre-wrap text-xs mt-2 max-h-80 overflow-auto">{d.proposals[0].content_markdown}</pre></details>}
+            </section>            <section className="card p-5">
               <h2 className="font-black">状态历史</h2>
               {d.status_history.map((x: any) => (
                 <p className="text-sm border-b py-2" key={x.id}>
