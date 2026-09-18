@@ -105,7 +105,13 @@ class CRMService:
             return {"status":"DryRun","external_id":None,"detail":{"provider":provider,"reason":"credentials_not_configured" if not self.configured(provider) else "dry_run_enabled"}}
         try:
             if provider=="hubspot":
-                r=httpx.post("https://api.hubapi.com/crm/v3/objects/contacts",headers={"Authorization":f"Bearer {settings.hubspot_access_token}"},json={"properties":{"email":lead.email,"firstname":lead.name,"company":lead.company,"website":lead.website or "","julu_lead_status":lead.status}},timeout=15)
+                properties={"firstname":lead.name,"company":lead.company,"website":lead.website or ""}
+                r=httpx.post(
+                    "https://api.hubapi.com/crm/v3/objects/contacts/batch/upsert",
+                    headers={"Authorization":f"Bearer {settings.hubspot_access_token}"},
+                    json={"inputs":[{"id":lead.email,"idProperty":"email","properties":properties}]},
+                    timeout=15,
+                )
             elif provider=="salesforce":
                 url=settings.salesforce_instance_url.rstrip("/")+"/services/data/v61.0/sobjects/Lead/"
                 r=httpx.post(url,headers={"Authorization":f"Bearer {settings.salesforce_access_token}"},json={"LastName":lead.name,"Company":lead.company,"Email":lead.email,"Website":lead.website,"Status":"Open - Not Contacted","Description":lead.conversation_summary},timeout=15)
@@ -113,7 +119,12 @@ class CRMService:
             if r.status_code in (401,403):raise IntegrationError("crm_auth",f"HTTP {r.status_code}",False)
             if r.status_code==429 or r.status_code>=500:raise IntegrationError("crm_retryable",f"HTTP {r.status_code}",True)
             r.raise_for_status();body=r.json()
-            return {"status":"Synced","external_id":body.get("id"),"detail":{"provider":provider}}
+            if provider=="hubspot":
+                results=body.get("results",[])
+                if not results:raise IntegrationError("crm_response","HubSpot returned no synced contact",False)
+                external_id=results[0].get("id")
+            else:external_id=body.get("id")
+            return {"status":"Synced","external_id":external_id,"detail":{"provider":provider}}
         except IntegrationError:raise
         except (httpx.TimeoutException,httpx.NetworkError) as e:raise IntegrationError("crm_network",type(e).__name__,True) from e
         except Exception as e:raise IntegrationError("crm_error",type(e).__name__,False) from e

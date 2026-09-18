@@ -9,7 +9,7 @@ from backend.app.schemas import AIResult
 from backend.app.database import Base,engine
 from backend.app.database import SessionLocal
 from backend.app.config import settings
-from backend.app.integrations import CalendarService,EmailService,IntegrationError
+from backend.app.integrations import CalendarService,EmailService,CRMService,IntegrationError
 from backend.app.ai_service import run_ai
 from backend.app.models import FollowUpTask,EmailDelivery,Lead
 from backend.app.scheduler import process_due_once
@@ -74,6 +74,27 @@ def test_calendar_error_classification():
     class FakeError(Exception):resp=Resp()
     err=CalendarService._error("calendar_create_error",FakeError())
     assert isinstance(err,IntegrationError) and err.retryable and err.code.endswith("rate_limit")
+
+def test_hubspot_uses_email_upsert_and_standard_properties(monkeypatch):
+    class Response:
+        status_code=200
+        def raise_for_status(self):pass
+        def json(self):return {"results":[{"id":"hubspot-contact-1"}]}
+    captured={}
+    def fake_post(url,headers,json,timeout):captured.update(url=url,headers=headers,json=json,timeout=timeout);return Response()
+    lead=type("LeadData",(),{"email":"sync@example.com","name":"王经理","company":"示例公司","website":"https://example.com"})()
+    old_token,old_dry_run=settings.hubspot_access_token,settings.crm_dry_run
+    try:
+        settings.hubspot_access_token="test-token";settings.crm_dry_run=False
+        monkeypatch.setattr("backend.app.integrations.httpx.post",fake_post)
+        result=CRMService().sync(lead,"hubspot")
+        assert result["status"]=="Synced" and result["external_id"]=="hubspot-contact-1"
+        assert captured["url"].endswith("/contacts/batch/upsert")
+        item=captured["json"]["inputs"][0]
+        assert item["id"]==lead.email and item["idProperty"]=="email"
+        assert item["properties"]=={"firstname":lead.name,"company":lead.company,"website":lead.website}
+        assert "julu_lead_status" not in item["properties"]
+    finally:settings.hubspot_access_token,settings.crm_dry_run=old_token,old_dry_run
 
 def test_followup_scheduler_executes_and_recovers_lease():
     d=create('scheduler-lead');lead_id=d['lead']['id'];old=settings.email_test_allowlist
