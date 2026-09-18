@@ -18,6 +18,8 @@
 | Alembic 新库、旧库、重复升级 | 通过 |
 | 桌面浏览器 | 无横向溢出、无控制台错误 |
 | 390×844 移动端 | 无横向溢出、无控制台错误 |
+| GitHub CI 综合测试 / Gitleaks | 成功 |
+| GitHub CI 独立 Docker 构建 | 成功 |
 
 ## 已覆盖的关键行为
 
@@ -43,7 +45,7 @@ Railway 公网健康检查返回 `ok`，数据库迁移为 Alembic，Volume 持�
 
 线上只读审计确认：`DEMO_MODE=false`，AI、Google Calendar、Resend、HubSpot 与 RAG 均显示 configured；HubSpot `dry_run=false`；HSTS、CSP、X-Frame-Options、nosniff 和 Referrer-Policy 均存在。
 
-本地补充扫描未发现常见 OpenAI、Resend、HubSpot、GitHub、Google 或私钥特征；最终以 GitHub CI 的 Gitleaks 全历史扫描为准。
+本地补充扫描未发现常见 OpenAI、Resend、HubSpot、GitHub、Google 或私钥特征；GitHub CI 的 Gitleaks 扫描也已通过。最终成功流水线：[CI #35404069441](https://github.com/wuyuhang0519-cyber/julu-ai-sales-assistant/actions/runs/35404069441)。
 
 ## 尚未执行的真实验收
 

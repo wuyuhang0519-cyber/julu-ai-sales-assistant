@@ -74,6 +74,7 @@
 - 前端生产构建：通过。
 - Playwright 隔离端口 8001 核心 E2E：1/1 通过。
 - Alembic 0001 → 0002 → 0003：全新升级和重复升级通过。
-- Railway Docker 构建与部署：通过。Windows 本机 Docker 重建被用户级 DaoCloud 镜像源 401 阻塞，未停止正在运行的保底版容器；干净 GitHub CI 继续承担独立 Docker 构建验证。
+- Railway Docker 构建与部署：通过。Windows 本机 Docker 重建被用户级 DaoCloud 镜像源 401 阻塞，未停止正在运行的保底版容器；干净 GitHub CI 的独立 Docker 构建已通过。
+- GitHub CI 综合任务（含 Gitleaks、Playwright、迁移与完整测试）：通过。
 - Resend 直接邮件与定时 Follow-up：Delivered。
 - HubSpot 联系人 Upsert：Synced。
