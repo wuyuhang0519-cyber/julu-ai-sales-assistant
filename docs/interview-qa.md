@@ -30,7 +30,15 @@
 
 ## Follow-up 如何避免重复发送？
 
-任务有业务幂等键、状态机、条件领取与 lease。只有人工审批后的 Scheduled 可执行；崩溃后回收过期 lease；Meeting、Closed 或人工接管会取消/跳过任务。Resend 适配器只允许白名单收件人，但它属于 B 题加分模块，当前线上未配置，也不宣称完成真实邮件送达。
+任务有业务幂等键、状态机、条件领取与 lease。只有人工审批后的 Scheduled 可执行；崩溃后回收过期 lease；Meeting、Closed 或人工接管会取消/跳过任务。Resend 只允许白名单收件人，直接邮件和离站 Follow-up 均已完成真实 Delivered 验收。
+
+## CRM 同步如何避免重复联系人？
+
+本次选择 HubSpot 路线，以 `email` 作为唯一属性调用联系人 Batch Upsert，只写 `firstname`、`company`、`website` 等标准字段；相同邮箱再次同步会更新而不是新增。Service Key 只授予联系人写权限，真实验收已返回 External ID 并可在 HubSpot 页面检索。
+
+## 为什么 WhatsApp 没有真实发送截图？
+
+代码、测试号码白名单、DryRun/Blocked 和审计路径已经实现，但 Meta 账号正在身份申诉，尚不能取得 Cloud API 测试凭证。这是外部账号阻塞，不把适配器完成等同于真实发送完成。
 
 ## 为什么用 SQLite 和进程内调度器？
 

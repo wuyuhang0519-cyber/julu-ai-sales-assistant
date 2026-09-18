@@ -19,11 +19,14 @@ flowchart TB
   Admin --> Auth --> Workflow
   Workflow --> Validate --> AI[SiliconFlow DeepSeek / DeepSeek 官方 / OpenAI]
   Workflow --> Calendar[Google Calendar]
-  Scheduler -. 可选且当前未配置 .-> Resend[Resend API]
+  Scheduler --> Resend[Resend API / 白名单]
+  Workflow --> CRM[HubSpot Upsert / Salesforce 可选]
+  Workflow --> Bonus[报价 / Proposal / 多语言 / 语音]
+  Workflow -. Meta 凭证待验收 .-> WhatsApp[WhatsApp Cloud API]
   Workflow --> SQLite[(SQLite Volume)]
   Scheduler --> SQLite
   Workflow --> Redactor --> SQLite
-  Validate --> KB[版本化 Markdown 知识库]
+  Validate --> KB[版本化 Markdown 分块 / 哈希向量 / Top-K 引用]
 ```
 
 ## ERD
@@ -41,6 +44,10 @@ erDiagram
   FOLLOW_UP_TASK ||--o{ EMAIL_DELIVERY : delivers
   LEAD ||--o{ ACTIVITY_LOG : audits
   LEAD ||--o{ INTEGRATION_EVENT : triggers
+  LEAD ||--o{ QUOTE : prices
+  LEAD ||--o{ PROPOSAL : generates
+  LEAD ||--o{ CHANNEL_DELIVERY : sends
+  LEAD ||--o{ CRM_SYNC : upserts
 ```
 
 ## AI 工作流
@@ -94,7 +101,7 @@ stateDiagram-v2
   [*] --> PendingApproval
   PendingApproval --> Scheduled: 管理员审批
   Scheduled --> Processing: 原子领取 + lease
-  Processing --> Sent: 可选 Resend / DryRun 成功
+  Processing --> Sent: Resend 返回 Provider ID
   Processing --> Scheduled: 可重试失败
   Processing --> Failed: 不可重试或达到上限
   Processing --> Skipped: Meeting / Closed / 人工接管
@@ -104,4 +111,24 @@ stateDiagram-v2
   Failed --> Scheduled: 人工重试
 ```
 
-所有时间以 UTC 存储。客户端提交无偏移时间时，服务端按请求中的 IANA 时区解释；返回时间显式携带 UTC 偏移。Follow-up 与 Resend 是 B 题加分模块；当前线上未配置 Resend，图中表示已实现的可选扩展路径。
+所有时间以 UTC 存储。客户端提交无偏移时间时，服务端按请求中的 IANA 时区解释；返回时间显式携带 UTC 偏移。当前独立加分版的 Resend 与 HubSpot 已真实验收；WhatsApp 仍受 Meta 账号申诉阻塞。
+
+## 多渠道与 CRM 时序
+
+```mermaid
+sequenceDiagram
+  participant O as 运营人员
+  participant A as FastAPI
+  participant D as SQLite 审计
+  participant R as Resend / Meta
+  participant H as HubSpot
+  O->>A: 审批 Follow-up 或发送渠道消息
+  A->>A: allowlist / CSRF / 人工优先检查
+  A->>R: 白名单收件人请求
+  R-->>A: Provider ID 或分类错误
+  A->>D: EmailDelivery / ChannelDelivery / IntegrationEvent
+  O->>A: 同步 HubSpot
+  A->>H: 以 email 为唯一键批量 Upsert
+  H-->>A: Contact External ID
+  A->>D: CRMSync + IntegrationEvent
+```

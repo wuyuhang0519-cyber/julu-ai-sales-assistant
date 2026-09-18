@@ -9,17 +9,17 @@
 | 销售人员接管 | 完成 | 后台接管/释放；接管后 AI 不再自动推进 |
 | 长期客户记忆 | 完成 | 对话、Profile、事实、状态、报价、Proposal 和同步记录持久化 |
 | 定时 Follow-up | 完成 | 人工审批、定时调度、租约回收、幂等、重试、取消和审计 |
-| 邮件渠道 | 代码完成 | Resend 真实发送需要密钥、已验证发件人和测试白名单 |
+| 邮件渠道 | 已完成并真实验收 | Resend 白名单测试邮件返回 Delivered；密钥只存 Railway Secret |
 | RAG 企业知识库 | 完成 | Markdown 分块、本地哈希向量、余弦 Top-K 检索、Prompt 注入、引用追踪；检索 API 仅管理员可用 |
-| WhatsApp | 代码完成 | Meta WhatsApp Cloud API、测试白名单、Dry-run、审计；真实发送需要 Meta 凭证 |
+| WhatsApp | 代码完成，真实验收待 Meta | Cloud API、测试白名单、DryRun/Blocked 和审计已实现；账号申诉通过后补充测试号码、Phone Number ID 和令牌 |
 | 语音对话 | 完成 | 浏览器 Web Speech API 语音输入和回复朗读；Chrome/Edge 支持最佳 |
 | 多语言 | 完成 | 自动识别并支持中文、英语、西班牙语回复和 Proposal |
 | 自动报价 | 完成 | 三档演示价格目录、折扣上限、有效期、草案/审批；明确非正式报价 |
 | 自动 Proposal | 完成 | 基于已确认客户事实、RAG 引用和报价草案生成中/英/西方案 |
-| HubSpot 同步 | 代码完成 | Private App Token 配置后真实写入；默认 Dry-run |
-| Salesforce 同步 | 代码完成 | Instance URL + Access Token 配置后真实写入；默认 Dry-run |
+| HubSpot 同步 | 已完成并真实验收 | 最小权限 Service Key；按邮箱 Upsert，已在 HubSpot 生成真实联系人和 External ID |
+| Salesforce 同步 | 可选替代适配器完成 | 本次选择 HubSpot 路线，因此 Salesforce 保持未配置，不影响“HubSpot/Salesforce”验收 |
 
-“代码完成”不等于第三方平台已真实连通。没有真实密钥时系统返回 DryRun 或 Blocked，不会伪造 Message ID 或 CRM External ID。
+“代码完成”不等于第三方平台已真实连通。没有真实密钥时系统返回 DryRun 或 Blocked，不会伪造 Message ID 或 CRM External ID。当前唯一尚未完成真实外部验收的加分能力是 WhatsApp。
 
 ## 后台操作
 
@@ -50,7 +50,7 @@
 安全默认值：
 
 - 邮件和 WhatsApp 只有命中 allowlist 才会访问第三方 API。
-- CRM 默认 CRM_DRY_RUN=true。
+- CRM 默认 `CRM_DRY_RUN=true`；仅在独立加分版完成 HubSpot 验收后设置为 false。
 - 报价与 Proposal 默认都是 Draft。
 - 企业知识检索接口需要管理员登录。
 - 日志只保存脱敏收件人，不保存第三方密钥。
@@ -65,12 +65,15 @@
 
 ## 已执行验收
 
-- 后端测试：21 项通过。
-- 覆盖率：86.91%，高于 85% 门禁。
+- 后端测试：22 项通过。
+- 覆盖率：87.62%，高于 85% 门禁。
 - AI 固定评测：9/9 通过。
 - Ruff：通过。
 - mypy：通过。
 - 前端 Vitest：通过。
 - 前端生产构建：通过。
+- Playwright 隔离端口 8001 核心 E2E：1/1 通过。
 - Alembic 0001 → 0002 → 0003：全新升级和重复升级通过。
-- Docker Compose 配置检查：通过。
+- Railway Docker 构建与部署：通过。Windows 本机 Docker 重建被用户级 DaoCloud 镜像源 401 阻塞，未停止正在运行的保底版容器；干净 GitHub CI 继续承担独立 Docker 构建验证。
+- Resend 直接邮件与定时 Follow-up：Delivered。
+- HubSpot 联系人 Upsert：Synced。
