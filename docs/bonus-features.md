@@ -11,7 +11,7 @@
 | 定时 Follow-up | 完成 | 人工审批、定时调度、租约回收、幂等、重试、取消和审计 |
 | 邮件渠道 | 已完成并真实验收 | Resend 白名单测试邮件返回 Delivered；密钥只存 Railway Secret |
 | RAG 企业知识库 | 完成 | Markdown 分块、本地哈希向量、余弦 Top-K 检索、Prompt 注入、引用追踪；检索 API 仅管理员可用 |
-| WhatsApp | 代码完成，真实验收待 Meta | Cloud API、测试白名单、DryRun/Blocked 和审计已实现；账号申诉通过后补充测试号码、Phone Number ID 和令牌 |
+| WhatsApp | 代码完成，真实验收被外部账号阻塞 | Cloud API、测试白名单、DryRun/Blocked 和审计已实现；Meta 已驳回申诉并永久禁用该账号，无法取得测试凭证 |
 | 语音对话 | 完成 | 浏览器 Web Speech API 语音输入和回复朗读；Chrome/Edge 支持最佳 |
 | 多语言 | 完成 | 自动识别并支持中文、英语、西班牙语回复和 Proposal |
 | 自动报价 | 完成 | 三档演示价格目录、折扣上限、有效期、草案/审批；明确非正式报价 |

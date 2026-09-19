@@ -2,7 +2,7 @@
 
 ## 演示前检查
 
-- 公网健康检查为 `ok`；后台集成页显示 SiliconFlow、Google Calendar、Resend、HubSpot 与 RAG 已配置。WhatsApp 明确显示未配置，原因是 Meta 账号申诉中。
+- 公网健康检查为 `ok`；后台集成页显示 SiliconFlow、Google Calendar、Resend、HubSpot 与 RAG 已配置。WhatsApp 明确显示未配置，原因是 Meta 已驳回账号申诉并永久禁用该账号。
 - 只使用虚构客户数据和本人测试邮箱；日历是专用测试日历；提前清空浏览器控制台。
 - 准备两条数据：高意向制造企业和“保证排名/最低合同价”的异常输入。
 
@@ -48,7 +48,7 @@
 
 展示自动报价、Proposal、RAG 引用和中/英/西语言切换；再展示 Follow-up 的 `Sent` 审计、Resend 的 `Delivered` 记录，以及 HubSpot 中按测试邮箱同步出的联系人。语音只在支持 Web Speech API 的 Chrome/Edge 演示。
 
-口述：“WhatsApp 适配器、白名单和审计代码已经完成，但 Meta 账号仍在申诉，所以我不会把它说成真实发送成功。HubSpot/Salesforce 这一项选择 HubSpot 路线完成真实验收。”
+口述：“WhatsApp 适配器、白名单和审计代码已经完成，但 Meta 驳回了账号申诉并永久禁用该账号，所以我不会把它说成真实发送成功，也不会绕过平台限制。HubSpot/Salesforce 这一项选择 HubSpot 路线完成真实验收。”
 
 ## 7:20–8:00 工程证明与收尾
 

@@ -111,7 +111,7 @@ stateDiagram-v2
   Failed --> Scheduled: 人工重试
 ```
 
-所有时间以 UTC 存储。客户端提交无偏移时间时，服务端按请求中的 IANA 时区解释；返回时间显式携带 UTC 偏移。当前独立加分版的 Resend 与 HubSpot 已真实验收；WhatsApp 仍受 Meta 账号申诉阻塞。
+所有时间以 UTC 存储。客户端提交无偏移时间时，服务端按请求中的 IANA 时区解释；返回时间显式携带 UTC 偏移。当前独立加分版的 Resend 与 HubSpot 已真实验收；WhatsApp 因 Meta 驳回申诉并永久禁用账号而无法完成真实验收。
 
 ## 多渠道与 CRM 时序
 

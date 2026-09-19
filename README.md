@@ -1,6 +1,6 @@
 # JULU AI 销售自动化系统
 
-面向北京聚路国际 AI 工程师实操 B 题的作品级 Demo：从官网留资开始，由 SiliconFlow 托管的真实 DeepSeek 模型完成个性化接待、事实提取、五维评分与下一动作判断；应用负责状态机、人工优先、幂等、调度与持久化；Google Calendar、Resend 与 HubSpot 已完成真实外部验收。OpenAI 与 DeepSeek 官方接口保留为可切换 Provider。WhatsApp Cloud API 适配器已经实现，但真实凭证仍受 Meta 账号申诉阻塞，不能宣传为已真实发送。
+面向北京聚路国际 AI 工程师实操 B 题的作品级 Demo：从官网留资开始，由 SiliconFlow 托管的真实 DeepSeek 模型完成个性化接待、事实提取、五维评分与下一动作判断；应用负责状态机、人工优先、幂等、调度与持久化；Google Calendar、Resend 与 HubSpot 已完成真实外部验收。OpenAI 与 DeepSeek 官方接口保留为可切换 Provider。WhatsApp Cloud API 适配器已经实现，但 Meta 已驳回账号申诉并永久禁用该账号，因此不能宣传为已真实发送。
 
 > 默认 `DEMO_MODE=true` 仅用于离线启动和 CI。当前线上主演示使用 `DEMO_MODE=false`、SiliconFlow `deepseek-ai/DeepSeek-V4-Flash` 与专用 Google 测试日历。
 
@@ -70,7 +70,7 @@ flowchart LR
   SCH[数据库轮询调度器] --> DB
   SCH --> MAIL[Resend 白名单邮件]
   WF --> CRM[HubSpot 已验收 / Salesforce 可选]
-  WF -. Meta 申诉后验收 .-> WA[WhatsApp Cloud API]
+  WF -. Meta 账号不可用，未真实验收 .-> WA[WhatsApp Cloud API]
   WF --> DOC[报价 / Proposal]
   API --> AUDIT[AIInvocation / ActivityLog / 状态历史]
   AUDIT --> DB
@@ -122,7 +122,7 @@ npm --prefix frontend run test:e2e
 - 不保存模型原始响应，只保存脱敏白名单摘要。测试环境仅在显式开启 `STORE_RAW_AI_RESPONSE` 时可短期保留。
 - 401/403 不重试；429、网络和 5xx 有限退避。Calendar 创建失败释放 Slot，不更新 Meeting；若启用可选邮件模块，非白名单地址禁止外发。
 - Resend 仅允许本人测试邮箱；不得移除白名单进行批量触达。HubSpot Service Key 仅授予联系人写权限。
-- WhatsApp 尚未完成真实发送：Meta 账号申诉通过前，后台只能显示未配置或 DryRun/Blocked。
+- WhatsApp 尚未完成真实发送：Meta 已驳回账号申诉并永久禁用该账号，后台只能显示未配置或 DryRun/Blocked。不得通过虚假账号绕过平台限制。
 - 当前为单管理员签名 Cookie，没有 RBAC、密码重置和 OIDC，仅适合面试 Demo。
 - SQLite 与内置调度器只支持单实例；生产扩展应改 PostgreSQL 和独立 Worker。
 

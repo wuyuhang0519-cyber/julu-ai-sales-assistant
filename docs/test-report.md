@@ -49,4 +49,4 @@ Railway 公网健康检查返回 `ok`，数据库迁移为 Alembic，Volume 持�
 
 ## 尚未执行的真实验收
 
-WhatsApp Cloud API 的适配器、白名单、DryRun/Blocked 和审计已经实现，但 Meta 账号申诉尚未通过，无法取得测试号码、Phone Number ID 与临时访问令牌，因此不宣称真实 WhatsApp 发送成功。Salesforce 未配置是主动选择：同一“HubSpot/Salesforce”加分项已经由 HubSpot 路线完成真实验收。
+WhatsApp Cloud API 的适配器、白名单、DryRun/Blocked 和审计已经实现，但 Meta 已驳回账号申诉并永久禁用该账号，无法取得测试号码、Phone Number ID 与临时访问令牌，因此不宣称真实 WhatsApp 发送成功。Salesforce 未配置是主动选择：同一“HubSpot/Salesforce”加分项已经由 HubSpot 路线完成真实验收。
