@@ -134,8 +134,10 @@ npm --prefix frontend run test:e2e
 
 ![外部服务状态后台](docs/screenshots/admin-integrations.png)
 
-## 全加分功能隔离分支
+## 最终提交版本与回滚
 
-完整加分功能在 `feature/all-bonus-features` 独立分支开发，不会自动影响 `main` 与 Railway 保底版。该版本新增检索式 RAG、中英西多语言、浏览器语音、自动报价、Proposal、WhatsApp、HubSpot/Salesforce 适配器与多渠道审计。当前加分版公网为 <https://julu-ai-bonus-test-production.up.railway.app>。
+完整加分功能先在 `feature/all-bonus-features` 独立分支开发和验收，现已被选为最终提交版本。该版本新增检索式 RAG、中英西多语言、浏览器语音、自动报价、Proposal、WhatsApp、HubSpot/Salesforce 适配器与多渠道审计。最终 Demo 公网地址为 <https://julu-ai-bonus-test-production.up.railway.app>。
+
+合并前的保底版本 `91746db` 永久保留在远程分支 `backup/stable-delivery-91746db` 和标签 `stable-delivery-91746db`，出现问题时可以明确回滚，不需要重写历史。
 
 详细完成状态、真实集成边界、配置和验收结果见 [docs/bonus-features.md](docs/bonus-features.md)。第三方密钥未配置时只执行 DryRun/Blocked，不得把适配器代码宣传为已完成真实外部投递。

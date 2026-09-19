@@ -1,6 +1,6 @@
 # 全加分功能版说明
 
-本文件对应分支 feature/all-bonus-features。该分支位于独立 Git worktree，不是当前 Railway 稳定版。除非明确合并到 main 并重新部署，否则不会改变现有公网 Demo。
+本文件记录 `feature/all-bonus-features` 的开发与验收结果。该版本先在独立 Git worktree 和独立 Railway 服务中完成验证，随后被选为最终提交版本；原保底版本 `91746db` 保存在远程备份分支和标签中，可随时回滚。
 
 ## 完成矩阵
 
