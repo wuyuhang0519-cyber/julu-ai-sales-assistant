@@ -52,7 +52,7 @@
 
 ## 7:20–8:00 工程证明与收尾
 
-展示 CI：Ruff、mypy、后端 22/22 与 87.62% 覆盖率、9/9 AI 评测、前端、Playwright、Docker、Alembic 和 Gitleaks；再打开架构/ERD 与故障矩阵。
+展示 CI：Ruff、mypy、后端 22/22 与 87.73% 覆盖率、9/9 AI 评测、前端、Playwright、Docker、Alembic 和 Gitleaks；再打开架构/ERD 与故障矩阵。
 
 收尾话术：“这不是把模型包进聊天框，而是一个可解释、可验证、可人工接管、能真实执行外部动作的 AI 销售系统。当前以单实例 SQLite 控制 Demo 风险，生产扩展路径是 PostgreSQL 和独立 Worker，而不是在面试范围内过度微服务化。”
 

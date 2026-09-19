@@ -1,2 +1,39 @@
-import {test,expect} from '@playwright/test';
-test('visitor-to-meeting and admin flow',async({page})=>{await page.goto('/');await page.getByLabel('姓名*').fill('李经理');await page.getByLabel('公司*').fill('未来智造');await page.getByLabel('邮箱*').fill('li@example.com');await page.getByLabel('初步需求（可选）').fill('欧美市场，Google Ads 获客，三个月启动，有预算 20 万，我参与决策，希望提升 ChatGPT 可见度和自然询盘');await page.getByRole('button',{name:/开始 AI 诊断/}).click();await expect(page.getByText(/你好，李经理/)).toBeVisible();await page.getByPlaceholder(/回答问题/).fill('预算 20 万，我是决策负责人，三个月启动');await page.getByRole('button',{name:'发送'}).click();await page.getByRole('button',{name:/查看可预约时间/}).click();await page.locator('aside button').filter({hasText:/202/}).first().click();await expect(page.getByText(/预约已确认/)).toBeVisible();await page.goto('/admin');await page.getByLabel('用户名*').fill(process.env.TEST_ADMIN_USERNAME||'admin');await page.getByLabel('密码*').fill(process.env.TEST_ADMIN_PASSWORD||'change-me');await page.getByRole('button',{name:'登录'}).click();await expect(page.getByText('客资与 AI 决策')).toBeVisible();await expect(page.getByText('李经理').first()).toBeVisible()});
+import { expect, test } from "@playwright/test";
+
+test("visitor-to-meeting and admin flow", async ({ page }) => {
+  test.setTimeout(60_000);
+  const email = `li+e2e-${Date.now()}@example.com`;
+
+  await page.goto("/");
+  await page.getByLabel("姓名*").fill("李经理");
+  await page.getByLabel("公司*").fill("未来智造");
+  await page.getByLabel("邮箱*").fill(email);
+  await page
+    .getByLabel("初步需求（可选）")
+    .fill(
+      "欧美市场，Google Ads 获客，三个月启动，有预算 20 万，我参与决策，希望提升 ChatGPT 可见度和自然询盘",
+    );
+  await page.getByRole("button", { name: /开始 AI 诊断/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "你好，李经理" }),
+  ).toBeVisible({ timeout: 15_000 });
+
+  await page
+    .getByPlaceholder(/回答问题/)
+    .fill("预算 20 万，我是决策负责人，三个月启动");
+  await page.getByRole("button", { name: "发送" }).click();
+  await page.getByRole("button", { name: /查看可预约时间/ }).click();
+  await page.locator("aside button").filter({ hasText: /202/ }).first().click();
+  await expect(page.getByText(/预约已确认/)).toBeVisible();
+
+  await page.goto("/admin");
+  await page
+    .getByLabel("用户名*")
+    .fill(process.env.TEST_ADMIN_USERNAME || "admin");
+  await page
+    .getByLabel("密码*")
+    .fill(process.env.TEST_ADMIN_PASSWORD || "change-me");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page.getByText("客资与 AI 决策")).toBeVisible();
+  await expect(page.getByText("李经理").first()).toBeVisible();
+});
