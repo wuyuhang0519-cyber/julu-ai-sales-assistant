@@ -2,7 +2,7 @@
 
 ## 演示前检查
 
-- 公网健康检查为 `ok`，后台集成页显示 SiliconFlow 与 Google Calendar 已配置；Resend 显示未配置。
+- 公网健康检查为 `ok`；后台集成页显示 SiliconFlow、Google Calendar、Resend、HubSpot 与 RAG 已配置。WhatsApp 明确显示未配置，原因是 Meta 已驳回账号申诉并永久禁用该账号。
 - 只使用虚构客户数据和本人测试邮箱；日历是专用测试日历；提前清空浏览器控制台。
 - 准备两条数据：高意向制造企业和“保证排名/最低合同价”的异常输入。
 
@@ -44,16 +44,18 @@
 
 再展示一条模型失败记录：最终失败时客户消息仍保存，但 Profile、分数和状态不变。展示脱敏日志，不展示任何密钥。
 
-## 6:20–7:15 工程证明
+## 6:20–7:20 加分能力与真实外部动作
 
-展示 CI：Ruff、mypy、后端 85%+ 覆盖率、9/9 AI 评测、前端、Playwright、Docker、Alembic 和 Gitleaks；再打开架构/ERD 与故障矩阵。
+展示自动报价、Proposal、RAG 引用和中/英/西语言切换；再展示 Follow-up 的 `Sent` 审计、Resend 的 `Delivered` 记录，以及 HubSpot 中按测试邮箱同步出的联系人。语音只在支持 Web Speech API 的 Chrome/Edge 演示。
 
-如果评委追问 Follow-up，说明审批、调度、租约、重试、白名单与 Resend 适配器已实现，但邮件多渠道属于 B 题加分项，当前线上没有配置 Resend，因此不冒充真实送达。
+口述：“WhatsApp 适配器、白名单和审计代码已经完成，但 Meta 驳回了账号申诉并永久禁用该账号，所以我不会把它说成真实发送成功，也不会绕过平台限制。HubSpot/Salesforce 这一项选择 HubSpot 路线完成真实验收。”
 
-## 7:15–8:00 收尾
+## 7:20–8:00 工程证明与收尾
+
+展示 CI：Ruff、mypy、后端 22/22 与 87.62% 覆盖率、9/9 AI 评测、前端、Playwright、Docker、Alembic 和 Gitleaks；再打开架构/ERD 与故障矩阵。
 
 收尾话术：“这不是把模型包进聊天框，而是一个可解释、可验证、可人工接管、能真实执行外部动作的 AI 销售系统。当前以单实例 SQLite 控制 Demo 风险，生产扩展路径是 PostgreSQL 和独立 Worker，而不是在面试范围内过度微服务化。”
 
 ## 备用方案
 
-若现场网络或第三方服务不可用，切换 `APP_ENV=development`、`DEMO_MODE=true`。必须明确说明这是断网备用，并展示此前真实成功的 SiliconFlow IntegrationEvent 和 Google Calendar 事件截图；不要把离线结果冒充真实模型调用，也不要展示不存在的 Resend Message ID。
+若现场网络或第三方服务不可用，切换 `APP_ENV=development`、`DEMO_MODE=true`。必须明确说明这是断网备用，并展示此前真实成功的 SiliconFlow、Google Calendar、Resend 和 HubSpot 审计证据；不要把 DryRun 冒充真实外部调用。

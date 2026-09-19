@@ -6,7 +6,9 @@
 - 管理 Cookie 为 HttpOnly、SameSite=Lax；生产启用 Secure/HSTS。写请求必须同时携带 CSRF Cookie 和 Header。
 - 登录失败按来源限流；请求体上限 1 MB；统一设置 CSP、X-Frame-Options、nosniff 和 Referrer-Policy。
 - Redactor 处理邮箱、电话、Cookie、Authorization、API Key、Token 和服务账号字段；ActivityLog、AIInvocation 与异常摘要均走脱敏。
-- 若启用可选邮件模块，收件人必须命中 `EMAIL_TEST_ALLOWLIST`，否则保存 `Blocked` 且不访问 Resend；当前线上未配置 Resend。
+- 邮件收件人必须命中 `EMAIL_TEST_ALLOWLIST`，否则保存 `Blocked` 且不访问 Resend；该边界已在线上真实验证。
+- WhatsApp 号码必须命中 `WHATSAPP_TEST_ALLOWLIST`；Meta 凭证未配置时不得尝试真实外发。
+- HubSpot 使用账号级 Service Key，仅授予 `crm.objects.contacts.write`；联系人按邮箱幂等 Upsert，不保存密钥到数据库。
 - Gitleaks 在 CI 扫描仓库；公开前仍需在本机执行 `gitleaks git --log-opts="--all"` 扫描完整历史。
 
 ## 故障矩阵
@@ -21,19 +23,21 @@
 | Google 409 | 返回冲突 | 原预约和 Lead 不变 |
 | Google 429 / 5xx / 网络 | 分类为可重试失败并审计 | Slot 回滚释放 |
 | Calendar 取消失败 | 保留本地 Confirmed，标记同步失败 | 不释放 Slot |
-| Resend 非白名单 | Blocked，不发请求 | Follow-up Skipped |
+| Resend/WhatsApp 非白名单 | Blocked，不发请求 | Follow-up Skipped 或渠道记录 Blocked |
 | Resend 401/403 | 不重试 | Follow-up Failed |
 | Resend 429 / 5xx / 网络 | 指数退避，最多三次 | Scheduled 或 Failed |
 | 重复 Lead / 消息 / 预约 | 幂等键与数据库约束 | 返回既有结果 |
 | 调度进程崩溃 | lease 过期回收 | 避免永久 Processing |
 | 人工接管 / Closed / Meeting | 取消或跳过未执行任务 | 自动推进被阻止 |
+| HubSpot 401/403 | 不重试，记录 `crm_auth` | CRM Sync Failed，不伪造 External ID |
+| HubSpot 429/5xx/网络 | 标记可重试错误 | Lead 主状态不变 |
 
 ## 上线检查
 
 1. `APP_ENV=production`、`DEMO_MODE=false`、`COOKIE_SECURE=true`。
 2. 强随机管理员密码和至少 32 位 Session Secret。
 3. Railway 单实例，Volume 挂载 `/app/data`，数据库使用绝对路径。
-4. SiliconFlow/DeepSeek/OpenAI 与 Google 服务账号使用最小权限测试资源；若启用可选 Resend，也只允许本人测试邮箱，禁止真实批量触达。
+4. SiliconFlow/DeepSeek/OpenAI 与 Google 服务账号使用最小权限测试资源；Resend 只允许本人测试邮箱；HubSpot 只授予联系人写权限；禁止真实批量触达。
 5. 完成一次成功和一次可控失败，并在后台验证 IntegrationEvent、AIInvocation 与 ActivityLog。
 6. 扫描代码、镜像、日志和全部 Git 历史，确认无密钥、服务账号 JSON 或客户数据。
 7. 备份 SQLite Volume；部署前后记录 Alembic revision。

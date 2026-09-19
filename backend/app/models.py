@@ -111,3 +111,28 @@ class IntegrationEvent(Base):
     __tablename__="integration_events"
     id: Mapped[int]=mapped_column(primary_key=True); provider: Mapped[str]=mapped_column(String(40), index=True); operation: Mapped[str]=mapped_column(String(80)); status: Mapped[str]=mapped_column(String(30)); lead_id: Mapped[int|None]=mapped_column(ForeignKey("leads.id"), nullable=True)
     latency_ms: Mapped[int|None]=mapped_column(Integer, nullable=True); error_type: Mapped[str|None]=mapped_column(String(80), nullable=True); detail: Mapped[dict]=mapped_column(JSON, default=dict); created_at: Mapped[datetime]=mapped_column(DateTime(timezone=True), default=now)
+
+class Quote(Base):
+    __tablename__="quotes"
+    id: Mapped[int]=mapped_column(primary_key=True); lead_id: Mapped[int]=mapped_column(ForeignKey("leads.id"), index=True)
+    quote_number: Mapped[str]=mapped_column(String(60), unique=True, index=True); package_code: Mapped[str]=mapped_column(String(40)); currency: Mapped[str]=mapped_column(String(10), default="CNY")
+    subtotal: Mapped[int]=mapped_column(Integer); discount_percent: Mapped[int]=mapped_column(Integer, default=0); total: Mapped[int]=mapped_column(Integer)
+    line_items: Mapped[list]=mapped_column(JSON, default=list); assumptions: Mapped[list]=mapped_column(JSON, default=list); status: Mapped[str]=mapped_column(String(30), default="Draft")
+    valid_until: Mapped[datetime]=mapped_column(DateTime(timezone=True)); approved_at: Mapped[datetime|None]=mapped_column(DateTime(timezone=True), nullable=True); created_at: Mapped[datetime]=mapped_column(DateTime(timezone=True), default=now)
+
+class Proposal(Base):
+    __tablename__="proposals"
+    id: Mapped[int]=mapped_column(primary_key=True); lead_id: Mapped[int]=mapped_column(ForeignKey("leads.id"), index=True); quote_id: Mapped[int|None]=mapped_column(ForeignKey("quotes.id"), nullable=True)
+    proposal_number: Mapped[str]=mapped_column(String(60), unique=True, index=True); language: Mapped[str]=mapped_column(String(10), default="zh-CN"); title: Mapped[str]=mapped_column(String(240)); content_markdown: Mapped[str]=mapped_column(Text)
+    knowledge_refs: Mapped[list]=mapped_column(JSON, default=list); status: Mapped[str]=mapped_column(String(30), default="Draft"); created_at: Mapped[datetime]=mapped_column(DateTime(timezone=True), default=now); updated_at: Mapped[datetime]=mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+class ChannelDelivery(Base):
+    __tablename__="channel_deliveries"
+    id: Mapped[int]=mapped_column(primary_key=True); lead_id: Mapped[int|None]=mapped_column(ForeignKey("leads.id"), nullable=True, index=True); channel: Mapped[str]=mapped_column(String(30)); recipient_redacted: Mapped[str]=mapped_column(String(220))
+    provider: Mapped[str]=mapped_column(String(40)); provider_message_id: Mapped[str|None]=mapped_column(String(255), nullable=True); status: Mapped[str]=mapped_column(String(30)); error_type: Mapped[str|None]=mapped_column(String(80), nullable=True)
+    content_summary: Mapped[str]=mapped_column(Text, default=""); created_at: Mapped[datetime]=mapped_column(DateTime(timezone=True), default=now)
+
+class CRMSync(Base):
+    __tablename__="crm_syncs"
+    id: Mapped[int]=mapped_column(primary_key=True); lead_id: Mapped[int]=mapped_column(ForeignKey("leads.id"), index=True); provider: Mapped[str]=mapped_column(String(30)); operation: Mapped[str]=mapped_column(String(40), default="upsert_lead")
+    status: Mapped[str]=mapped_column(String(30)); external_id: Mapped[str|None]=mapped_column(String(255), nullable=True); error_type: Mapped[str|None]=mapped_column(String(80), nullable=True); detail: Mapped[dict]=mapped_column(JSON, default=dict); created_at: Mapped[datetime]=mapped_column(DateTime(timezone=True), default=now)

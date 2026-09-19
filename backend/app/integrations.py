@@ -1,4 +1,4 @@
-import json,time
+import json,time,re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -74,4 +74,59 @@ class EmailService:
                 if attempt<2:time.sleep(.25*(2**attempt))
         raise last or IntegrationError("email_error","unknown",False)
 
-calendar_service=CalendarService(); email_service=EmailService()
+class WhatsAppService:
+    @property
+    def allowlist(self):return {re.sub(r"\D","",x) for x in settings.whatsapp_test_allowlist.split(",") if x.strip()}
+    @property
+    def configured(self):return bool(settings.whatsapp_access_token and settings.whatsapp_phone_number_id)
+    def send(self,to:str,content:str):
+        number=re.sub(r"\D","",to)
+        recipient="[PHONE_REDACTED]"
+        if number not in self.allowlist:return {"status":"Blocked","provider_id":None,"recipient":recipient}
+        if not self.configured:return {"status":"DryRun","provider_id":None,"recipient":recipient}
+        url=f"https://graph.facebook.com/{settings.whatsapp_api_version}/{settings.whatsapp_phone_number_id}/messages"
+        try:
+            r=httpx.post(url,headers={"Authorization":f"Bearer {settings.whatsapp_access_token}"},json={"messaging_product":"whatsapp","to":number,"type":"text","text":{"preview_url":False,"body":content}},timeout=15)
+            if r.status_code in (401,403):raise IntegrationError("whatsapp_auth",f"HTTP {r.status_code}",False)
+            if r.status_code==429 or r.status_code>=500:raise IntegrationError("whatsapp_retryable",f"HTTP {r.status_code}",True)
+            r.raise_for_status();messages=r.json().get("messages",[])
+            return {"status":"Sent","provider_id":messages[0].get("id") if messages else None,"recipient":recipient}
+        except IntegrationError:raise
+        except (httpx.TimeoutException,httpx.NetworkError) as e:raise IntegrationError("whatsapp_network",type(e).__name__,True) from e
+        except Exception as e:raise IntegrationError("whatsapp_error",type(e).__name__,False) from e
+
+class CRMService:
+    def configured(self,provider:str)->bool:
+        if provider=="hubspot":return bool(settings.hubspot_access_token)
+        if provider=="salesforce":return bool(settings.salesforce_instance_url and settings.salesforce_access_token)
+        return False
+    def sync(self,lead,provider:str):
+        if settings.crm_dry_run or not self.configured(provider):
+            return {"status":"DryRun","external_id":None,"detail":{"provider":provider,"reason":"credentials_not_configured" if not self.configured(provider) else "dry_run_enabled"}}
+        try:
+            if provider=="hubspot":
+                properties={"firstname":lead.name,"company":lead.company,"website":lead.website or ""}
+                r=httpx.post(
+                    "https://api.hubapi.com/crm/v3/objects/contacts/batch/upsert",
+                    headers={"Authorization":f"Bearer {settings.hubspot_access_token}"},
+                    json={"inputs":[{"id":lead.email,"idProperty":"email","properties":properties}]},
+                    timeout=15,
+                )
+            elif provider=="salesforce":
+                url=settings.salesforce_instance_url.rstrip("/")+"/services/data/v61.0/sobjects/Lead/"
+                r=httpx.post(url,headers={"Authorization":f"Bearer {settings.salesforce_access_token}"},json={"LastName":lead.name,"Company":lead.company,"Email":lead.email,"Website":lead.website,"Status":"Open - Not Contacted","Description":lead.conversation_summary},timeout=15)
+            else:raise IntegrationError("crm_provider","Unsupported CRM provider",False)
+            if r.status_code in (401,403):raise IntegrationError("crm_auth",f"HTTP {r.status_code}",False)
+            if r.status_code==429 or r.status_code>=500:raise IntegrationError("crm_retryable",f"HTTP {r.status_code}",True)
+            r.raise_for_status();body=r.json()
+            if provider=="hubspot":
+                results=body.get("results",[])
+                if not results:raise IntegrationError("crm_response","HubSpot returned no synced contact",False)
+                external_id=results[0].get("id")
+            else:external_id=body.get("id")
+            return {"status":"Synced","external_id":external_id,"detail":{"provider":provider}}
+        except IntegrationError:raise
+        except (httpx.TimeoutException,httpx.NetworkError) as e:raise IntegrationError("crm_network",type(e).__name__,True) from e
+        except Exception as e:raise IntegrationError("crm_error",type(e).__name__,False) from e
+
+calendar_service=CalendarService(); email_service=EmailService(); whatsapp_service=WhatsAppService(); crm_service=CRMService()

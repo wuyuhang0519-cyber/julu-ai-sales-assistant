@@ -3,8 +3,8 @@ from datetime import datetime,timedelta,timezone
 from sqlalchemy import select,update
 from .config import settings
 from .database import SessionLocal
-from .models import FollowUpTask,Lead,EmailDelivery,ActivityLog,IntegrationEvent
-from .integrations import email_service,IntegrationError
+from .models import FollowUpTask,Lead,EmailDelivery,ActivityLog,IntegrationEvent,ChannelDelivery
+from .integrations import email_service,whatsapp_service,IntegrationError
 from .security import redact_text
 
 def utcnow():return datetime.now(timezone.utc)
@@ -39,6 +39,16 @@ def process_due_once():
             try:
                 result=email_service.send(lead.email,task.subject,task.content.replace("\n","<br>"));task.attempts+=1;task.status="Sent" if result["status"] in {"Sent","DryRun"} else "Skipped"
                 db.add(EmailDelivery(lead_id=lead.id,follow_up_id=task.id,recipient_redacted=result["recipient"],provider="resend" if result["status"]=="Sent" else "local",provider_message_id=result["provider_id"],status=result["status"],attempts=task.attempts))
+                db.add(ChannelDelivery(lead_id=lead.id,channel="email",recipient_redacted=result["recipient"],provider="resend" if result["status"]=="Sent" else "local",provider_message_id=result["provider_id"],status=result["status"],content_summary=redact_text(task.content[:160]) or ""))
+                phone=(lead.profile.additional_facts or {}).get("phone") if lead.profile else None
+                if "whatsapp" in {x.strip().lower() for x in settings.followup_channels.split(",")} and phone:
+                    try:
+                        wa=whatsapp_service.send(str(phone),task.content)
+                        db.add(ChannelDelivery(lead_id=lead.id,channel="whatsapp",recipient_redacted=wa["recipient"],provider="meta_whatsapp" if wa["status"]=="Sent" else "local",provider_message_id=wa["provider_id"],status=wa["status"],content_summary=redact_text(task.content[:160]) or ""))
+                        db.add(IntegrationEvent(provider="meta_whatsapp" if wa["status"]=="Sent" else "local_whatsapp",operation="send_followup",status="Success",lead_id=lead.id,detail={"delivery_status":wa["status"]}))
+                    except IntegrationError as wa_error:
+                        db.add(ChannelDelivery(lead_id=lead.id,channel="whatsapp",recipient_redacted="[PHONE_REDACTED]",provider="meta_whatsapp",status="Failed",error_type=wa_error.code,content_summary=redact_text(task.content[:160]) or ""))
+                        db.add(IntegrationEvent(provider="meta_whatsapp",operation="send_followup",status="Failed",lead_id=lead.id,error_type=wa_error.code,detail={"retryable":wa_error.retryable}))
                 db.add(IntegrationEvent(provider="resend" if result["status"]=="Sent" else "local_email",operation="send_followup",status="Success",lead_id=lead.id,detail={"delivery_status":result["status"]}))
                 db.add(ActivityLog(lead_id=lead.id,event_type="followup_executed",message=f"Follow-up 结果：{result['status']}",meta={"task_id":task.id}))
             except IntegrationError as e:
